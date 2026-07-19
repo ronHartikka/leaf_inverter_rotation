@@ -22,6 +22,8 @@ docs/
   hardware.md                 pin map, active-LOW, power arch, RTD rig
   lessons.md                  the 10 hard-won lessons (megaAVR trap, PTC stall, etc.)
   rotation_budget.md          duty tally + the "does 3×duty < 100%?" question
+  todo.md                     prioritized backlog — the work queue (START HERE)
+  claude_code_kickoff.md      paste-in prompt for the first Claude Code session
 loads/
   schema.json                 reusable per-load template (copy -> <load>.json)
   dorm_fridge.json            done (also the original worked example)
