@@ -170,3 +170,46 @@ CRITICAL correction to the earlier cross-check plan:
   both wrong (same bug)."
 - Check the installed Adafruit_MAX31865 version too (which branch its
   temperature() uses) as corroboration.
+
+---
+
+## P2+ — Inverter-fridge rotation architecture (NEW, from LTCS20020 findings)
+
+Emerged from characterizing the LG LTCS20020 (linear BLDC inverter). Depends on
+tomorrow's data: DOES the compressor ever fully shut off, or modulate continuously?
+
+If it modulates continuously (no clean off-windows):
+- The fridge has no idle gaps for rotation to fill; rotation must FORCE power
+  interruptions on it. Combined with the LG 3-min lockout, this fridge becomes the
+  binding constraint the whole schedule bends around (guarantee >=3min off AND a
+  recovery on-window each time it's cut; cannot observe it while unpowered).
+- => The rotation budget model (sum of duty cycles < 100%) may not apply to this
+  load. Model it as: min on-window, max tolerable off-window (from warmup rate),
+  mandatory >=3min lockout-avoidance off.
+
+Knowing fridge temp while its relay is OPEN (two approaches, build BOTH):
+
+1. TEMP-TO-CONTROLLER LINK (measured, preferred long-term):
+   ESP32 (owns RTDs + WiFi) PUSHES temperature directly TO the Arduino controller
+   (WiFiNINA), device-to-device. The Ubuntu laptop leaves the control path entirely
+   and stays a pure logger. This is the production-appropriate topology: two embedded
+   devices form the control loop; no laptop dependency.
+   - Gives the Arduino fridge temp even while the fridge relay is OPEN (the blind
+     window during freezer/furnace service).
+   - Likely protocol (decide in Claude Code): ESP32 pushes a short UDP packet ~1 Hz
+     (t1, t2, ms, fault). Arduino rule: no fresh packet in N sec -> fall back to
+     dead-reckoning. Stateless, self-healing. HTTP/MQTT are heavier alternatives.
+   - SAFETY: Arduino treats incoming temp as ENHANCEMENT over dead-reckoning (#2),
+     never as the sole basis. Fail-safe to the model, not fail-blind. Don't lean on
+     it hard until the ESP32 is rebuilt off breadboard (P3).
+
+2. DEAD-RECKON WARMUP (fallback / safer primary for now): estimate fridge temp from
+   last-known value + measured constant warmup slope while unpowered. Build anyway --
+   RTD rig faults ~1-2/thousands of samples.
+
+SAFETY SEQUENCING NOTE: promoting the ESP32 into the CONTROL loop elevates it from a
+losable passive logger feed to a safety-critical telemetry source. Current ESP32 is
+BREADBOARDED + intermittent (needs soldered-protoboard rebuild, see P3). Until that
+rebuild, dead-reckon warmup should be the PRIMARY safety basis and telemetry only an
+enhancement -- the inverse of the intuitive ordering. Do NOT make rotation safety
+depend on the breadboarded ESP32.
