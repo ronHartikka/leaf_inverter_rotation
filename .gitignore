@@ -1,0 +1,10 @@
+# Raw captures are large and local (data/ has its own too, belt + suspenders)
+*.csv
+# Arduino build artifacts
+build/
+*.hex
+*.elf
+# Python
+__pycache__/
+*.pyc
+.venv/

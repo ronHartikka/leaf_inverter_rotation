@@ -1,0 +1,219 @@
+{
+  "schema_version": "1.0",
+  "load_id": "chest_freezer",
+  "display_name": "White Consolidated chest freezer (deployment load)",
+
+  "identity": {
+    "appliance_type": "chest_freezer",
+    "make": "White Consolidated Inc. (Frigidaire), Cleveland OH",
+    "model": "MFC15M3BW0",
+    "serial": "WB40405635",
+    "manufactured": "01-94",
+    "capacity": "~15 cu ft (CONFIRMED via EnerGuide label: Type C, 13.6-15.6 cu ft band)",
+    "nameplate_voltage_v": 115,
+    "nameplate_current_a": 5.0,
+    "nameplate_freq_hz": 60,
+    "refrigerant": "R12",
+    "refrigerant_charge": "10.0 oz (283 g)",
+    "design_pressure_psig": { "low_side": 140, "high_side": 280 },
+    "compressor_type": "induction, PTC/capacitor start not conclusively resolved from this run (100ms burst under-sampled the start transient; see electrical.plateau_a)",
+    "control": "mechanical thermostat in series (assumed; confirm)",
+    "listing": "UL listed household freezer, 126A / LR7788; free-standing installation only",
+    "notes": "REAL DEPLOYMENT LOAD, not a test piece. CORRECTION TO PRIOR EXPECTATION: the 5.0A nameplate is a locked-rotor-inclusive max, NOT a run-current predictor. Measured running current is ~0.72A -- consistent with the PROJECT_STATE compressor-class reasoning (~0.68A, dorm-fridge-like), and it CONTRADICTS the earlier '~1.5-2.5A running' note derived from nameplate. Current is set by compressor class, not box size. The anticipated 30-60A inrush / ACS712-clip scenario did NOT occur in the RMS-window capture (see inrush_peak_a caveat)."
+  },
+
+  "factory_spec": {
+    "comment": "Transcribed from the manufacturer performance sticker and the EnerGuide label (photos). This is the factory reference the measured data is checked against. Three independent factory figures (run-time, per-run wattage, annual kWh) all show this unit running harder than spec -- consistent with low R12 charge and/or frost-loaded evaporator on a 1994 unit.",
+    "performance_sticker": {
+      "control_setting": "MIN",
+      "source": "manufacturer performance sticker on cabinet",
+      "columns_ambient_f": [70, 90],
+      "rows": {
+        "freezer_compartment_temp_f": { "70F": "3 to 7", "90F": "3 to 7" },
+        "percent_running_time": { "70F": "35-50", "90F": "50-75" },
+        "wattage_last_third_of_cycle_w": { "70F": "130-155", "90F": "125-155" },
+        "suction_pressure_cutin_cutout_psig": { "70F": "12-0", "90F": "13-0" },
+        "high_side_pressure_last_third_psig": { "70F": "95-120", "90F": "130-155" }
+      },
+      "transcription_caveats": "70F high-side 95-120 and 90F high-side 130-155 were mapped from a run-together paste; column assignment for the two high-side values should be double-checked against the physical sticker."
+    },
+    "energuide": {
+      "rating_kwh_per_year": 425,
+      "comparison_band_kwh_per_year": [425, 450],
+      "band_position": "efficient end of its similar-models band (~425 low / ~450 high)",
+      "type": "C",
+      "volume_band_cu_ft": [13.6, 15.6],
+      "model_on_label": "MFC15M3BWQ",
+      "source": "EnerGuide / Consommation energetique label (photo). Units are kWh per YEAR (par annee), not per hour."
+    },
+    "measured_vs_spec": {
+      "run_time_pct": {
+        "spec_70F": "35-50",
+        "spec_90F": "50-75",
+        "measured": 70,
+        "delta": "Measured ~70% on a normal (not 90F) bench -- over the 70F spec ceiling and at the top of the 90F range. Runs as if in a hot room while in a normal one."
+      },
+      "per_run_wattage_w": {
+        "spec": "130-155",
+        "measured_approx": 82,
+        "basis": "~0.71A end-of-run x 115V.",
+        "delta": "About half spec wattage. Low draw + excessive run time is the classic low-refrigerant-charge signature: too little refrigerant moved, so it never satisfies."
+      },
+      "annual_energy_kwh": {
+        "spec_energuide": 425,
+        "measured_approx": 500,
+        "basis": "~82W x 0.70 duty = ~57W avg -> ~1.38 kWh/day -> ~500 kWh/yr.",
+        "delta": "~15-18% OVER its own factory rating despite low per-run wattage, because run time is so high. A healthy unit runs less at higher per-run watts and lands at/below 425."
+      },
+      "frost_note": "Cabinet photos show ~60-70% loose fill plus visible evaporator-wall frost buildup. Frost insulates the coil and lengthens run time -- a second mechanical contributor to high duty, on top of likely low charge. A defrost might recover some duty but won't fix charge."
+    },
+    "conclusion": "Three independent factory references (run-time spec, per-run wattage spec, EnerGuide annual kWh) all indicate the unit is running well beyond spec. Supports replacement. Re-characterize any replacement unit; do not inherit these numbers."
+  },
+
+  "channel_binding": {
+    "comment": "Optional: where this load was measured/plugged during characterization. Deployment binding lives in the controller config, not here.",
+    "socket_label": "TBD -- confirm which channel dual_logger current stream mapped to for this run",
+    "relay_pin": null,
+    "sense_pin": null,
+    "array_index": null
+  },
+
+  "electrical": {
+    "running_current_a": {
+      "value": 0.72,
+      "confidence": "high",
+      "source": "dual_logger.py merged CSV (latest_chest_freezer_run.csv), 26 complete run segments over 16.7h, steady-body mean.",
+      "notes": "Steady running mean 0.717A. End-of-run (final 60s before thermostat cutout) averaged 0.706A, per-run range 0.673-0.788A -- FLAT into shut-off, i.e. thermostatic cutout, not a laboring/rising-current compressor. Matches dorm fridge (~0.68A) and confirms compressor-class current independence from box size."
+    },
+    "inrush_peak_a": {
+      "value": 3.5,
+      "confidence": "low -- method-limited, NOT a true surge peak",
+      "source": "max of first-3s samples across run starts, dual_logger 10Hz sample-and-hold.",
+      "notes": "3.47A is the highest value the 10Hz/100ms-RMS-window capture saw at start; it is NOT the instantaneous inrush. A real induction-compressor start transient is sub-100ms and heavily averaged out by both the ACS712 RMS window and 10Hz sampling. True instantaneous surge is unmeasured by this rig and could be well higher (10s of amps). If a true surge number is needed for inverter sizing, capture with a scope + current shunt. Notably the feared ACS712 railing did NOT appear -- but absence of clipping here does not prove low instantaneous inrush, it reflects the averaging."
+    },
+    "plateau_a": {
+      "value": null,
+      "confidence": null,
+      "source": "would require a fast (>=1kHz) start capture; the 100ms burst under-sampled it this run.",
+      "notes": "Start method (PTC shelf vs capacitor/relay-start) NOT resolved. This run's start samples show current already at steady ~0.75A by the first captured point -- the settle transient fell between samples. Leaving compressor_type unresolved rather than guessing. Low priority given the replace-the-unit decision."
+    },
+    "inrush_duration_s": {
+      "value": null,
+      "confidence": null,
+      "source": "unresolved -- start transient under-sampled (see plateau_a).",
+      "notes": "Current is at steady value by the first post-start sample; settle duration shorter than the sampling could resolve, OR masked by sample-and-hold. Not a limiting factor for overcurrent_trip_ms given the low steady current."
+    }
+  },
+
+  "control_constants": {
+    "comment": "Now scaled off the MEASURED ~0.72A running current (NOT the nameplate 5.0A). These are usable starting values; confirm min_off under deliberate stress before deployment.",
+    "start_confirm_a": {
+      "value": 0.35,
+      "basis": "~half of 0.72A running; well above the ~0.10A noise floor. Same value that worked for the ~0.68A dorm fridge -- appropriate here given near-identical run current."
+    },
+    "stop_a": {
+      "value": 0.20,
+      "basis": "below run (0.72A), above noise (~0.10A), below start_confirm (0.35A) for clean hysteresis. Current collapses well past this at true cutout."
+    },
+    "min_offer_ms": {
+      "value": 3000,
+      "basis": "start-to-steady settle is effectively immediate at this sampling; 3s offer gives ample confirm margin. Carried from dorm fridge; run-current parity justifies it."
+    },
+    "start_debounce_ms": {
+      "value": 2000,
+      "basis": "sustained >start_confirm for 2s confirms a real run vs a stall. No large start hump observed to override this."
+    },
+    "stop_debounce_ms": {
+      "value": 5000,
+      "basis": "current collapses cleanly at thermostat cutout; 5s confirms a genuine stop, not a momentary dip."
+    },
+    "max_offer_ms": {
+      "value": 20000,
+      "basis": "policy. A satisfied box shows only noise -> release the slot. Unchanged from dorm fridge."
+    },
+    "min_off_ms": {
+      "value": 180000,
+      "confidence": "must-enforce; verify under stress before deployment",
+      "basis": "anti-short-cycle 180s relays-open hold-off, survives resets. Run current matches the dorm PTC unit, so 180s is a reasonable floor, but this is an older/larger R12 compressor -- confirm it tolerates a hot restart at 180s before trusting it in deployment. Keep the reset hold-off enforced."
+    },
+    "overcurrent_trip_a": {
+      "value": 1.5,
+      "basis": "above legitimate steady run (0.72A, +peaks to ~0.79A end-of-run) with wide margin, below any stall. The dorm fridge's 1.5A happens to fit here BECAUSE run current is near-identical -- not because it was reused blindly. A locked-rotor event will vastly exceed this."
+    },
+    "overcurrent_trip_ms": {
+      "value": 20000,
+      "basis": ">1.5A for >20s -> latch off. Healthy steady run never approaches 1.5A, so no false-trip risk; the start transient is far shorter than 20s. Same 20s used and validated on the dorm fridge."
+    }
+  },
+
+  "thermal": {
+    "comment": "From RTD in freezer air (t1_freezer_f), MAX31865 + PT1000, ice-bath verified this round. Single compartment.",
+    "compartments": {
+      "freezer": {
+        "rtd_channel": "t1_freezer_f (Temperature1)",
+        "temp_range_f": [-7.67, 0.81],
+        "confidence": "high",
+        "notes": "Full observed envelope over 16.7h. Operating band held stable across the evening setpoint adjustment -- the tweak did not materially move the cycling band."
+      }
+    },
+    "thermostat_band_f": {
+      "compartment": "freezer",
+      "cut_out_f": -5.2,
+      "cut_in_f": -0.2,
+      "band_f": 5.0,
+      "confidence": "high",
+      "source": "mean of per-cycle ON-end minima (cut-out) and OFF-end maxima (cut-in) across ~26 cycles.",
+      "notes": "~5F band. Full extremes ran to -7.7F / +0.8F on outlier cycles. Cycle period ~38 min, mean run ~27 min."
+    },
+    "pulldown_rate_f_per_min": {
+      "value": -0.075,
+      "max_value": -0.261,
+      "confidence": "high",
+      "source": "freezer-air slope while compressor ON, per-run segments >60s.",
+      "notes": "WEAK. Mean cooling of only ~0.08F/min while running (best cycle ~0.26F/min). The compressor barely out-cools the cabinet heat leak -- this is WHY duty cycle is high despite low warmup. Consistent with a tired compressor and/or low R12 charge on a 1994 unit."
+    },
+    "warmup_rate_f_per_min": {
+      "value": 0.184,
+      "max_value": 0.213,
+      "confidence": "high",
+      "source": "freezer-air slope while compressor OFF, per-off segments >60s.",
+      "notes": "LOW, as the chest form factor predicted (~0.18F/min vs dorm fridge's ~1.1F/min) -- big thermal mass + lid-up geometry. This is the outage-tolerance advantage and it is genuinely good. Warm-bench measurement; real cold-ambient outage would warm even slower. Note box contents/loading affects this."
+    }
+  },
+
+  "duty_cycle": {
+    "value_pct": 70,
+    "confidence": "high",
+    "observations": [
+      {
+        "run_file": "latest_chest_freezer_run.csv",
+        "window_h": 16.67,
+        "on_time_h": 11.68,
+        "duty_pct": 70.1,
+        "starts": 27,
+        "mean_cycle_min": 37.7,
+        "mean_run_min": 26.6,
+        "ambient": "indoor warm-bench (record exact ambient if available)",
+        "note": "Stable across the full run including the evening setpoint change."
+      }
+    ],
+    "notes": "MAKE-OR-BREAK PARAMETER, and it breaks. Measured ~70%, NOT the ~15-25% expected for a big-thermal-mass freezer. 3x70% is far over budget -- this unit alone nearly monopolizes a one-at-a-time rotation. The high duty is explained by the weak ~0.08F/min pulldown (see thermal): good insulation (low warmup) but a compressor that can barely hold temp. Warm-bench is a worst case and real cold-ambient Michigan outages would lower duty somewhat, BUT the low pulldown is a unit-health problem, not an ambient one. This strongly supports the replace-the-freezer decision. Re-characterize any REPLACEMENT unit before assuming rotation viability."
+  },
+
+  "provenance": {
+    "instruments": [
+      "dual_logger.py on Ubuntu reading Arduino Uno WiFi Rev2 + ACS712-20A (current) and ESP32 + MAX31865 + PT1000 (temp) into one merged clock",
+      "characterize_load.ino firmware on the Arduino for the current stream",
+      "ESP32 + Adafruit MAX31865 + PT1000 RTD (temperature; ice-bath verified this round)"
+    ],
+    "capture_files": ["latest_chest_freezer_run.csv (16.7h, 10Hz, 600k samples)"],
+    "open_items": [
+      "RESOLVED: running current ~0.72A (nameplate 5.0A was a locked-rotor max, not run current)",
+      "RESOLVED: duty cycle ~70% -- NOT rotation-viable; supports replacement",
+      "UNRESOLVED (low priority given replace decision): start method / true instantaneous inrush -- this rig's sampling cannot capture the sub-100ms start transient; needs scope + shunt if ever required for inverter surge sizing",
+      "Confirm min_off_ms 180s tolerance under deliberate hot-restart stress IF this unit stays in service",
+      "Confirm capacity (MFC15 -> ~15 cu ft?)",
+      "When a REPLACEMENT freezer arrives, re-run this characterization -- do not inherit these numbers"
+    ]
+  }
+}

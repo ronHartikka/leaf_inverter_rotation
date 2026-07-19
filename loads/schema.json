@@ -1,0 +1,73 @@
+{
+  "_comment": "REUSABLE TEMPLATE for per-load characterization. Copy this file, rename to <load>.json, fill values. Every measured value carries value + confidence + source/basis. null = not yet measured. Derived from dorm_fridge.json; validated against chest_freezer.json.",
+  "schema_version": "1.0",
+  "load_id": "TEMPLATE",
+  "display_name": "",
+
+  "identity": {
+    "appliance_type": "",
+    "make": "", "model": "", "serial": "", "manufactured": "",
+    "capacity": "",
+    "nameplate_voltage_v": null, "nameplate_current_a": null, "nameplate_freq_hz": null,
+    "refrigerant": "",
+    "compressor_type": "",
+    "control": "",
+    "notes": "REMINDER: nameplate_current_a is a locked-rotor MAX, NOT run current. Run current is compressor-class (~0.7A for these). Scale control_constants off MEASURED running current."
+  },
+
+  "factory_spec": {
+    "_comment": "Optional. Add if the unit has a performance sticker / EnerGuide. See chest_freezer.json for the pattern: performance_sticker table + energuide + measured_vs_spec deltas.",
+    "performance_sticker": null,
+    "energuide": null,
+    "measured_vs_spec": null
+  },
+
+  "channel_binding": {
+    "comment": "Where this load was measured. Deployment binding lives in controller config, not here.",
+    "socket_label": null, "relay_pin": null, "sense_pin": null, "array_index": null
+  },
+
+  "electrical": {
+    "running_current_a": { "value": null, "confidence": null, "source": "", "notes": "" },
+    "inrush_peak_a": { "value": null, "confidence": null, "source": "", "notes": "WARNING: 10Hz/100ms-RMS sampling cannot resolve true inrush; any value is method-limited, not a surge peak." },
+    "plateau_a": { "value": null, "confidence": null, "source": "", "notes": "PTC shelf vs capacitor/relay-start identifies compressor_type." },
+    "inrush_duration_s": { "value": null, "confidence": null, "source": "", "notes": "" }
+  },
+
+  "control_constants": {
+    "comment": "Scale off MEASURED running_current_a, never nameplate. RESCALE overcurrent per load.",
+    "start_confirm_a": { "value": null, "basis": "~half of running current, above noise floor (~0.10A)." },
+    "stop_a": { "value": null, "basis": "below run, above noise, below start_confirm for hysteresis." },
+    "min_offer_ms": { "value": null, "basis": "measured start-to-steady settle." },
+    "start_debounce_ms": { "value": null, "basis": "sustained above start_confirm confirms real run vs stall." },
+    "stop_debounce_ms": { "value": null, "basis": "confirms a genuine thermostat cutout." },
+    "max_offer_ms": { "value": null, "basis": "policy: satisfied box shows only noise -> release slot." },
+    "min_off_ms": { "value": null, "confidence": "must-enforce", "basis": "anti-short-cycle, survives resets. >=180s PTC cooldown floor; confirm under hot-restart stress." },
+    "overcurrent_trip_a": { "value": null, "basis": "above steady run, below stall. RESCALE per load." },
+    "overcurrent_trip_ms": { "value": null, "basis": "must exceed a healthy start's inrush excursion." }
+  },
+
+  "thermal": {
+    "comment": "From RTD(s). SINGLE compartment: one block. DUAL (fridge): duplicate 'compartments' into fresh_food + freezer, each with its own rtd_channel, band, warmup/pulldown.",
+    "compartments": {
+      "COMPARTMENT_NAME": {
+        "rtd_channel": "",
+        "temp_range_f": [null, null],
+        "confidence": null,
+        "notes": ""
+      }
+    },
+    "thermostat_band_f": { "compartment": "", "cut_out_f": null, "cut_in_f": null, "band_f": null, "confidence": null, "source": "", "notes": "" },
+    "pulldown_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while ON.", "notes": "" },
+    "warmup_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while OFF.", "notes": "THE OUTAGE-CRITICAL NUMBER." }
+  },
+
+  "duty_cycle": {
+    "value_pct": null, "confidence": null, "observations": [],
+    "notes": "MAKE-OR-BREAK PARAMETER. Note ambient with every observation. Rotation budget: 3 loads share one inverter one-at-a-time; sum of duties must stay well under 100%."
+  },
+
+  "provenance": {
+    "instruments": [], "capture_files": [], "open_items": []
+  }
+}
