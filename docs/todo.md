@@ -140,3 +140,33 @@ probe placement, hot-restart pause, exact commands, equilibration wait.)
       bounds, watchdog + non-blocking millis(), WiFiNINA telemetry, per-load
       control constants from `loads/*.json`). Build AFTER fridge + replacement
       freezer are characterized (constants come from those JSONs).
+
+---
+
+## P0 UPDATE — ESP32 sketch located, conversion question sharpened
+
+ESP32 sketch confirmed: `ESP_WROOM_32_096_Adafruit_MAX31865_x2.ino` (2x MAX31865,
+PT1000, RREF 4300, RNOMINAL 1000, SSD1306 display). Committed to repo under
+`firmware/` when convenient (currently only in uploads).
+
+Serial stream per ~1s cycle prints ALL of: `RTD{1,2} value`, `Ratio{1,2}`,
+`Resistance{1,2} =`, `Temperature{1,2} =` (degF), plus `Fault ...` lines.
+=> Both witnesses already on the wire. dual_logger grabs only Resistance and
+reconverts; the ESP32's own degF (sketch line ~69) is unlogged but available.
+Adding an ESP32-degF column later is trivial (data already flows).
+
+ESP32 conversion path: `thermo.temperature(RNOMINAL, RREF)` (Adafruit lib) then
+`*1.8+32` in-sketch (lines 62-66). Display shows degF (lines 75-76).
+
+CRITICAL correction to the earlier cross-check plan:
+- Do NOT assume Adafruit's `temperature()` handles sub-zero correctly. OLDER
+  library versions use the SAME single positive-branch CVD quadratic dual_logger
+  uses; only newer versions add sub-zero linearization.
+- Therefore ESP32-degF and dual_logger-degF may AGREE on the cold side and BOTH
+  be WRONG vs a reference. Agreement != correct.
+- Cross-check MUST be THREE-WAY: ESP32 degF vs dual_logger degF vs an INDEPENDENT
+  PT1000 reference (standard resistance->temp table, or correct 4-term sub-zero
+  CVD computed fresh). Only that distinguishes "agree and right" from "agree and
+  both wrong (same bug)."
+- Check the installed Adafruit_MAX31865 version too (which branch its
+  temperature() uses) as corroboration.
