@@ -213,3 +213,99 @@ BREADBOARDED + intermittent (needs soldered-protoboard rebuild, see P3). Until t
 rebuild, dead-reckon warmup should be the PRIMARY safety basis and telemetry only an
 enhancement -- the inverse of the intuitive ordering. Do NOT make rotation safety
 depend on the breadboarded ESP32.
+
+---
+
+## P0 (CONFIRMED ROOT CAUSE) — Overnight overcurrent latch, 2026-07-20 00:38:17
+
+SUPERSEDES earlier wrong diagnoses in this doc (do not act on any "Arduino stalled"
+or "logger bug" write-up if one exists above -- ground truth below is from the
+Arduino's own raw log line + the plotted raw current waveform).
+
+### What happened (confirmed from raw serial log + raw current waveform)
+- Sketch: characterize_load.ino, TARGET_CH=3 (Spare) -- CONFIRM this matches the
+  fridge's actual physical socket; not yet verified (open item, see below).
+- 00:37:57 (t=-20s): current STEPS in one sample from steady ~0.75A to ~2.38A
+  (one transitional sample at 0.977A), holds ~2.35-2.38A for ~2s, eases to ~2.25A,
+  then SETTLES to a dead-flat ~1.90A (+/-0.01A, very low noise) and holds there.
+- The step crosses the sketch's 1.5A threshold and stays above it continuously.
+- 00:38:17 (t=0): sketch logs verbatim:
+  "# OVERCURRENT: >1.5A for >20s -> relay opened, latched off (likely stalled
+  compressor)." Relay opened, fridge lost power. Latch is PERMANENT (no retry) --
+  sketch then sat silent on the CUR stream (no more current-data lines) until Ron
+  manually restarted it ~07:22 (confirmed: fresh boot banner at that epoch).
+- Freezer (t1) warmed slowly and continuously ~7h (~-4F -> +22F, ~4F/hr) while
+  unpowered -- consistent, expected, matches an outage-scale warmup measurement.
+- Fresh-food (t2) and freezer were BOTH flat/normal in the 60s before the step --
+  no thermal sign of trouble; compressor was cooling fine right up to the event.
+- Food safety: freezer air never exceeded ~22F over ~7h -- very likely never
+  crossed the refreeze-safety threshold (40F / loses ice crystals). Food probably
+  fine; user to visually confirm ice crystals present.
+- Fridge restarted CLEANLY on wall power this morning, cooling normally -- no
+  lingering fault, no LED blink code observed (LED read was moot -- power had
+  already been cycled by the relay-open + wall-plug, clearing any state before
+  it could be read; see manual's "check before reset" caveat, already missed).
+
+### Why is this current level anomalous (NOT normal inverter modulation)
+- Checked: max current ELSEWHERE in the entire run (excluding Ron's own startup
+  transients while getting the two data streams running) was ~1.3A. 1.9A NEVER
+  recurred anywhere else in the dataset. This is a genuine one-off outlier, not a
+  normal operating band for this compressor.
+- Timing is backwards for "ramping up to cool harder": both compartments were
+  AT TEMPERATURE and flat -- this looked like it was approaching (per the pattern
+  of 3 prior ~20min shutoffs in the preceding ~2h) a 4th expected shutoff, not a
+  point where healthy cooling demand would justify doubling current.
+- EMI-from-fridge-power-cord-near-ESP32-USB-cable hypothesis (Ron's physical
+  observation: cord runs near ESP32 cable, not Arduino's) considered and
+  DEPRIORITIZED: a clean 20+ second flat DC step is not the signature of induced
+  noise/EMI (which produces transients/hash, not a stable held level). The
+  current was almost certainly REAL.
+
+### LEADING HYPOTHESIS (Ron's, not yet confirmed): DEFROST HEATER ENGAGEMENT
+- Service manual: defrost initiates every 7-50 accumulated COMPRESSOR run-hours;
+  this event was ~9.5h into the run -- plausible window.
+- Defrost heater = 254.7 ohm +/-5% -> ~52W @ 115V -> ~0.45A alone. Does not by
+  itself reach 1.9A, but defrost ENTRY is a scheduled control-logic transition
+  (per 8-1-3 sequential-operation-of-electric-parts): compressor/fan/heater states
+  change together. A transient combined draw (compressor not yet fully
+  disengaged + heater + fan reconfig) at a scheduled control event fits the
+  timing (right at an expected-shutoff point) far better than a benign inverter
+  ramp-up. THIS IS THE LEADING EXPLANATION but NOT CONFIRMED.
+- Alternative not ruled out: a genuine partial mechanical labor/stall-like event
+  that self-cleared (compressor restarted cleanly afterward with no lingering
+  issue, which argues against a hard/persistent stall).
+- Open item: correlate against the manual's defrost-entry conditions and, if a
+  next capture shows a similar current signature at ~7-50h compressor-run-hour
+  boundaries, that would confirm the defrost hypothesis.
+
+### FIXES NEEDED (all confirmed-necessary regardless of which hypothesis is right)
+- [ ] RESCALE overcurrent_trip_a for this load. Measured normal ceiling ~1.3A;
+      this event's real (non-fault) component may include ~0.45A heater on top of
+      whatever compressor draw remains during the transition. Set trip with real
+      margin above legitimate transients -- proposed ~3A -- while still catching
+      a genuine hard stall (which the manual implies is much higher). Do NOT
+      reuse the dorm-fridge/chest-freezer 1.5A value for this load.
+- [ ] FIX THE LATCH-AND-HALT-FOREVER BEHAVIOR. Even a CORRECT trip left the
+      fridge dead and silent for 7 hours with no retry and no alarm -- itself a
+      hazard independent of whether the trip was a false positive. Production
+      firmware needs auto-retry-after-cooldown and/or an alarm/telemetry signal,
+      not a silent permanent latch that only a human noticing the food warming
+      will catch.
+- [ ] CONFIRM CHANNEL TARGETING: sketch banner says TARGET_CH=3 (Spare); confirm
+      this is actually the fridge's physical socket (fridge is on the freezer's
+      old socket from the prior characterization run) -- not yet verified.
+- [ ] IF the defrost hypothesis is right, the control logic needs to EXPECT and
+      exclude the defrost-heater load from the compressor's overcurrent budget,
+      or use a longer/higher threshold specifically during defrost windows
+      (defrost timing is knowable: accumulated compressor run-hours 7-50).
+- [ ] Re-verify PCB fault LED code was NOT captured this event (power was already
+      cycled before it was read) -- for a FUTURE event, read the LED BEFORE any
+      power-cycle per the manual's explicit instruction.
+
+### CAPTURE FILE VALIDITY
+kitchen_fridge_run.csv is valid current data ~15:00 (prior day) through 00:38:17.
+After 00:38:17, current column is FROZEN at the last real value (1.896A) --
+logger sample-and-holds a stale value with no staleness guard (separate, still-
+valid logger fix noted elsewhere in this doc). Temps remain valid/real throughout
+(separate device, unaffected). Raw current waveform for the event itself is
+preserved in analysis outputs (overcurrent_event.png) generated 2026-07-20.
