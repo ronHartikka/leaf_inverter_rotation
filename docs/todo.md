@@ -16,12 +16,22 @@ the fridge's freezer compartment.
 ### The bug
 `dual_logger.py` `res_to_c()` solves ONLY the T >= 0 degC branch of
 Callendar-Van Dusen. Below 0 degC, PT1000 needs the sub-zero (4th-order) formula.
-So all sub-freezing temps are systematically biased (a few tenths of a degree C at
-~-20 degC). Affects:
+So all sub-freezing temps are (in principle) biased. Affects:
 - the chest freezer thermal numbers already in `loads/chest_freezer.json`
   (freezer sits ~-20 degC / -5..0 F), and
 - the fridge's FREEZER compartment on the upcoming run (~-18 degC).
 The fridge's fresh-food compartment (~2-4 degC) is in the valid branch, fine.
+
+**MAGNITUDE CORRECTION [measured 2026-07-20].** The earlier "a few tenths of a
+degree C at ~-20 degC" estimate was WRONG by ~2 orders of magnitude. The only
+term distinguishing the branches is `C*(T-100)*T^3` with C = -4.183e-12, which at
+-20 degC perturbs resistance by ~0.004 ohm ~= 0.001 degC. Measured old-vs-fixed
+delta on real capture resistances: <0.005 degF anywhere in the fridge/freezer
+range (0.000 degF at the -10 degC freezer readings; +0.004 degF at -25 degC). The
+C term only matters far colder (below ~-50 degC). So: the fix is correct and worth
+keeping on principle, but it corrects NO meaningful error in this temperature
+range. The chest-freezer recompute below is therefore COSMETIC (provenance only),
+not a data correction.
 
 ### Why it's recoverable
 `dual_logger.py` logs raw resistance (`res1_ohm`, `res2_ohm`) in every row.
@@ -44,20 +54,33 @@ logging the rawest signal — keep doing it.)
   correct archival conversion next to the audit trail where a unit test can pin it.
 
 ### Tasks
-- [ ] Fix `res_to_c()`: add the sub-zero CVD branch (T < 0 degC). Self-contained,
-      NO header change, NO consumer edits (values change, column names don't).
-- [ ] Add a tiny self-test: check a few known resistance->temp points against a
-      PT1000 reference table (both above and below 0 degC).
-- [ ] Cross-check script: for an existing freezer CSV, compare ESP32 degF (if in
-      stream) vs dual_logger-corrected degF vs raw resistance. Confirm warm-agree
-      and that cold-side now agrees after the fix. VERIFY before trusting.
+- [x] Fix `res_to_c()`: add the sub-zero CVD branch (T < 0 degC). DONE 2026-07-20.
+      Newton-Raphson on the exact both-branch forward CVD (seam at R == R0),
+      self-contained, NO header change, NO consumer edits.
+- [x] Add a tiny self-test: `python3 tools/dual_logger.py --self-test` pins
+      res_to_c() to 9 IEC 60751 PT1000 table points (-40..+100 degC, both
+      branches). PASS, worst error 0.0013 degC (tol 0.05). The IEC table is the
+      INDEPENDENT witness (not derived from our own forward formula).
+- [x] Cross-check script: `tools/crosscheck_temps.py <capture.raw>`. Ran on
+      kitchen_fridge_run.raw (86,108 pairs). THREE-WAY result:
+        - logger-degF == independent reference-degF to 0.0000 degF everywhere;
+          combined with the self-test => logger == reference == IEC table = RIGHT.
+        - ESP32's own Temperature print is the LESS-TRUSTED witness: deviates up
+          to 0.30 degF (cold) / 0.79 degF (warm) from correct. Cold-side deviation
+          is SMALLER than warm-side => NO shared sub-zero bug (the exact "agree and
+          both wrong" failure mode this check existed to rule out is ruled out).
+          (Likely cause: the ESP32 prints Temperature from a SEPARATE ADC read than
+          the Resistance line, plus 2-decimal rounding, on the noisy breadboard
+          rig. Not systematic, not a branch error.)
 - [ ] Recompute the chest freezer thermal fields in `loads/chest_freezer.json`
-      from stored resistances using the corrected conversion; note the small delta
-      + that duty/decision are unchanged. Bump provenance.
-- [ ] Confirm whether the ESP32 serial stream carries resistance, degF, or both
-      (dual_logger parses `Resistance1=`/`Resistance2=` — where from?). Paste the
-      ESP32 sketch print lines to settle this. May want to also log ESP32 degF as
-      its own column (SEE P2 — that's a HEADER change, batch it).
+      -> NOW COSMETIC (delta <0.01 degF, see MAGNITUDE CORRECTION above).
+      Blocked on the chest-freezer CSV (not in data/ yet; only kitchen_fridge is).
+      Low urgency: duty/decision provably unchanged. Bump provenance when done.
+- [x] ESP32 serial stream: CONFIRMED from kitchen_fridge_run.raw that each ~1s
+      TMP block carries BOTH `Resistance{1,2}=` (ohm) and `Temperature{1,2}=`
+      (degF, the sketch's own conversion). dual_logger takes resistance and
+      reconverts (correct archival path). Logging ESP32-degF as its own column is
+      a HEADER change -> batch with P1/P2, not here.
 
 ---
 
@@ -178,6 +201,16 @@ CRITICAL correction to the earlier cross-check plan:
 Emerged from characterizing the LG LTCS20020 (linear BLDC inverter). Depends on
 tomorrow's data: DOES the compressor ever fully shut off, or modulate continuously?
 
+**RESOLVED [2026-07-20]: it CLEANLY SHUTS OFF — continuous-modulation scenario
+ruled out.** The 2026-07-19/20 run showed hard cycling with clean off-windows:
+after an initial ~6 h continuous pulldown, it ran ON ~30 min / OFF ~20, 20, 10 min
+(3 observed shutoffs) before the overcurrent event. So this compressor does NOT
+modulate continuously; rotation has real 10-20 min idle gaps to fill and does NOT
+have to FORCE interruptions on it. => The "binding-constraint / must-force-off"
+branch below is OFF THE TABLE for this load; the ordinary duty-cycle budget model
+DOES apply. (Still confirm from the actual current trace via characterize.py; the
+off-durations above are eyeballed. Duty ~64% provisional — see rotation_budget.md.)
+
 If it modulates continuously (no clean off-windows):
 - The fridge has no idle gaps for rotation to fill; rotation must FORCE power
   interruptions on it. Combined with the LG 3-min lockout, this fridge becomes the
@@ -261,9 +294,29 @@ Arduino's own raw log line + the plotted raw current waveform).
   noise/EMI (which produces transients/hash, not a stable held level). The
   current was almost certainly REAL.
 
-### LEADING HYPOTHESIS (Ron's, not yet confirmed): DEFROST HEATER ENGAGEMENT
-- Service manual: defrost initiates every 7-50 accumulated COMPRESSOR run-hours;
-  this event was ~9.5h into the run -- plausible window.
+### CONFIRMED CAUSE (was Ron's leading hypothesis): DEFROST HEATER ENGAGEMENT
+Confirmed 2026-07-20 by the interior nameplate ("Defrosting input: 198 W") closing
+the magnitude question; timing was already a tight fit. Detail below.
+- Service manual: defrost initiates every 7-50 accumulated COMPRESSOR run-hours.
+  TIMING NOTE [added 2026-07-20, from cycling detail]: accumulated compressor
+  RUN-time by the event was ~8 h (a ~6 h continuous pulldown at the start + ~2 h
+  of on-time during the subsequent cycling), which lands right at the 7 h defrost
+  floor -- a much tighter fit than the earlier "~9.5h wall-clock" figure. A first
+  defrost-since-power-on coming due right here is strongly consistent with the
+  observed timing (the spike hit exactly at an about-to-shut-off moment).
+- CURRENT NOTE [added 2026-07-20; CORRECTED same day by nameplate]: originally
+  read the flat ~1.9A as inverter-drive current-limiting, because a 52W (254.7 ohm,
+  from the service manual) heater is only ~0.45A -- a 4x gap. SUPERSEDED and
+  RETIRED: the fridge's INTERIOR STICKER reads "Defrosting input: 198 W" =
+  ~1.7A @ 115V, which matches the observed flat ~1.9A directly. So the defrost
+  HEATER explains the current after all -- the manual's 52W/254.7 ohm figure was
+  the wrong part or wrong value; the nameplate wins. The ~2.4A entry step is the
+  compressor (~0.75A) briefly overlapping the energizing heater at defrost entry,
+  settling to heater-alone (~1.9A) once the compressor drops out. The flatness is
+  just a resistive heater on steady voltage -- no regulation needed to explain it
+  (earlier over-read). NET: defrost-heater engagement now fits BOTH timing (~8h
+  run-hrs ~ the 7h floor) AND magnitude (198W nameplate). This is now the confirmed
+  explanation; the inverter-drive-fault hypothesis is dropped.
 - Defrost heater = 254.7 ohm +/-5% -> ~52W @ 115V -> ~0.45A alone. Does not by
   itself reach 1.9A, but defrost ENTRY is a scheduled control-logic transition
   (per 8-1-3 sequential-operation-of-electric-parts): compressor/fan/heater states

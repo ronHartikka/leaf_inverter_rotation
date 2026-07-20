@@ -1,3 +1,4 @@
-# Raw capture CSVs are large and local-only; keep them out of git.
+# Raw capture CSVs + .raw sidecars are large and local-only; keep them out of git.
 *.csv
+*.raw
 !.gitignore
