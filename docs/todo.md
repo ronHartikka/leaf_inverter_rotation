@@ -272,6 +272,24 @@ refined against OUR measured data + Ron's priorities. Captured now so it isn't l
 implement at the production-firmware phase, after the fresh capture gives real defrost
 duration + cadence + per-compartment warmup.
 
+MEASURED [2026-07-21, live off the fresh-capture power-up -- full detail in
+loads/kitchen_fridge.json "defrost"]:
+- Defrost DURATION ~28-30 min => the MIN UNINTERRUPTED WINDOW the scheduler must grant the
+  fridge once a defrost is detected. Do not cut it inside this window.
+- Defrost LOAD: flat ~1.8 A / ~198 W (heater; compressor OFF -- confirmed by observation +
+  drain-pan melt water), with PERIODIC BRIEF DIPS to ~1 A every ~10 min (board sampling the
+  coil temp). => the detector MUST DEBOUNCE: require current low for several seconds before
+  declaring "defrost over", or it false-ends on every measurement dip.
+- Sensor-based ADAPTIVE defrost (thermistor-terminated) confirmed -- a smart board deciding
+  when to stop, not a fixed bimetal.
+- POST-DEFROST: ~7 min dwell (no compressor), then restart at ~1.5 A (inverter high-speed
+  pulldown of the warm box) tapering toward ~0.75 A. Budget the fridge block as one
+  indivisible unit: ~30 min defrost + ~7 min dwell + a pulldown-recovery window.
+- OPEN (the big one): defrost fired IMMEDIATELY on this power-up (vs the shakedown's 6 h
+  pulldown-first). If defrost is POWER-ON-triggered, EVERY rotation re-power could defrost and
+  dominate the whole schedule. Unresolved -- watch for a 2nd defrost this run, or test by
+  cycling power. Single most important thing to pin down next.
+
 Core reframing (corrects the brainstorm): defrost is an EVENT TO ALLOW, not a window
 to schedule or a state to force.
 - Defrost triggers on 7-50 accumulated COMPRESSOR run-hours -- NOT nightly, NOT

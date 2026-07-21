@@ -36,7 +36,7 @@
   },
 
   "electrical": {
-    "running_current_a": { "value": 0.75, "confidence": "low (provisional)", "source": "pre-event baseline of the 2026-07-19/20 shakedown current trace", "notes": "Slightly above the ~0.7 A class. SUPERSEDE from the fresh capture." },
+    "running_current_a": { "value": 0.75, "confidence": "low (provisional)", "source": "pre-event baseline of the 2026-07-19/20 shakedown current trace", "notes": "Variable-speed inverter: ~0.75 A steady near setpoint, but ~1.5 A during pulldown/recovery (box warm, e.g. post-defrost 2026-07-21). SUPERSEDE with settled values from the fresh capture." },
     "inrush_peak_a": { "value": null, "confidence": null, "source": "", "notes": "WARNING: 10Hz/100ms-RMS sampling cannot resolve true inrush; any value is method-limited, not a surge peak." },
     "plateau_a": { "value": null, "confidence": null, "source": "", "notes": "Inverter compressor: expect a smooth ramp, not a PTC shelf." },
     "inrush_duration_s": { "value": null, "confidence": null, "source": "", "notes": "" }
@@ -58,12 +58,27 @@
   "thermal": {
     "comment": "DUAL compartment: fresh_food + freezer, one RTD each. All null pending the fresh equilibrated capture (shakedown probes were still relocating; the CSV columns even read reversed early on).",
     "compartments": {
-      "fresh_food": { "rtd_channel": null, "temp_range_f": [null, null], "confidence": null, "notes": "Record probe->column mapping at the rig. Shakedown steady-state: fresh-food ~38 F." },
-      "freezer": { "rtd_channel": null, "temp_range_f": [null, null], "confidence": null, "notes": "Sub-zero branch (P0 fix applies). Shakedown steady-state: freezer ~3 F; ~4 F/hr unpowered warmup during the 7 h post-trip coast." }
+      "fresh_food": { "rtd_channel": "RTD ch2 -> CSV column t2_fridge_f (CONFIRMED 2026-07-21: reads fresh-food)", "temp_range_f": [null, null], "confidence": null, "notes": "Column name is correct for this run. Shakedown steady-state: fresh-food ~38 F." },
+      "freezer": { "rtd_channel": "RTD ch1 -> CSV column t1_freezer_f (CONFIRMED 2026-07-21: reads freezer)", "temp_range_f": [null, null], "confidence": null, "notes": "Sub-zero branch (P0 fix applies). Shakedown steady-state: freezer ~3 F; ~4 F/hr unpowered warmup during the 7 h post-trip coast." }
     },
     "thermostat_band_f": { "compartment": "", "cut_out_f": null, "cut_in_f": null, "band_f": null, "confidence": null, "source": "", "notes": "" },
     "pulldown_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while ON.", "notes": "" },
     "warmup_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while OFF.", "notes": "THE OUTAGE-CRITICAL NUMBER. Per compartment." }
+  },
+
+  "defrost": {
+    "_comment": "Measured live during the 2026-07-21 fresh-capture power-up (provenance below). Triangulated: flat ~1.8 A resistive draw + compressor confirmed OFF (by observation) + melt water in the drain pan.",
+    "type": "sensor-based adaptive (thermistor-terminated); NOT a fixed bimetal",
+    "heater_draw_a": 1.8, "heater_power_w": 198,
+    "duration_min": 29,
+    "duration_note": "~28-30 min (ended 2:54 PM 2026-07-21); exact value from the CSV (current step-up -> drop). This = the MIN UNINTERRUPTED WINDOW rotation must grant once a defrost is detected.",
+    "signature_note": "flat ~1.8 A with PERIODIC BRIEF DIPS to ~1 A (observed ~15 & ~25 min in, ~10 min apart) = the board momentarily cutting the heater to sample the true coil temp (defrost sensor sits next to the heater). Detect-and-protect logic MUST debounce these dips, not read them as 'defrost over'.",
+    "post_defrost_peak_f": { "freezer": 24, "fresh_food": 41, "note": "warmest point of the cycle; food-safe (freezer well under the 40 F ice-crystal line)." },
+    "post_defrost_dwell_min": 7,
+    "dwell_note": "~7 min from defrost end to compressor restart (drip/drain + anti-short-cycle). Normal.",
+    "post_defrost_pulldown_a": 1.5,
+    "pulldown_note": "compressor restarts at ~1.5 A (inverter HIGH speed to recover the warm box), expected to taper toward ~0.75 A near setpoint. NB ~1.5 A sits right at the OLD 1.5 A trip -> the 3.5 A rescale was needed for normal post-defrost recovery too, not just the heater.",
+    "trigger": "UNRESOLVED: went straight to defrost on THIS power-up (vs the shakedown's 6 h pulldown first). Power-on-triggered vs run-hours-due not yet distinguished. If power-on-triggered, EVERY rotation re-power could defrost -> major scheduling impact. Resolve by watching for a 2nd defrost on the ~7-50 run-hour schedule this run, or by deliberately cycling power later."
   },
 
   "duty_cycle": {
@@ -83,10 +98,10 @@
       "data/kitchen_fridge_run.csv (+ .raw) -- 2026-07-19/20 SHAKEDOWN. Current valid only for unix_s <= 1784522297 (frozen/stale after the 00:38:17 overcurrent latch); temps valid throughout."
     ],
     "open_items": [
-      "Fresh equilibrated multi-cycle capture pending (2026-07-21) with the 3.5 A firmware; skip the pulldown, run many hours.",
+      "Fresh multi-cycle capture IN PROGRESS (2026-07-21) with the 3.5 A firmware -- captured a full power-up defrost + recovery clean, no false trip; still need many STEADY cycles for the duty number.",
+      "Resolve defrost trigger: power-on-triggered vs run-hours-due (watch for a 2nd defrost this run, or cycle power to test) -- determines whether every rotation re-power defrosts.",
       "Verify TARGET_CH=3 (array index 3 = physical Ch4 'Spare') is actually the fridge's physical socket.",
-      "P1 column rename (t1_freezer_f/t2_fridge_f -> neutral) before the fresh capture.",
-      "Record probe -> compartment -> CSV column mapping at the rig.",
+      "RESOLVED 2026-07-21: probe->compartment->column mapping confirmed -- t1_freezer_f = freezer (RTD ch1), t2_fridge_f = fresh-food (RTD ch2); column names correct for this run.",
       "Confirm compressor_type (linear vs reciprocating BLDC inverter)."
     ]
   }
