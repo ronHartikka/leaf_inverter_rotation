@@ -1,3 +1,93 @@
 {
-  "_placeholder": "NEXT LOAD. Dual-compartment: thermal block needs TWO compartments (fresh_food + freezer) and TWO RTD channels. Fill from a dual_logger capture using schema.json / dorm_fridge.json as the template."
+  "_comment": "Kitchen fridge (LG LTCS20020B), dual-compartment. Started 2026-07-21 with AUTHORITATIVE nameplate + DECIDED firmware constants only. Measured fields (electrical/thermal/duty) are null pending a fresh equilibrated capture; the 2026-07-19/20 run was a shakedown (see provenance). Fill measured values from that capture per schema.json.",
+  "schema_version": "1.0",
+  "load_id": "kitchen_fridge",
+  "display_name": "Kitchen fridge (LG LTCS20020B)",
+
+  "identity": {
+    "appliance_type": "refrigerator-freezer, dual-compartment",
+    "make": "LG", "model": "LTCS20020B /00", "serial": "211MRSS1F166", "manufactured": "2022-11",
+    "capacity": "product code GM-U552SOXM.AWBCNAO; 29.9(W) x 33.9(D) x 66.1(H) in",
+    "nameplate_voltage_v": 115, "nameplate_current_a": 2.7, "nameplate_freq_hz": 60,
+    "refrigerant": "R600a, 62 g (2.2 oz)",
+    "compressor_type": "inverter, variable-speed (LG smart inverter; noted elsewhere as linear/BLDC — CONFIRM)",
+    "control": "adaptive defrost: initiates every 7-50 accumulated COMPRESSOR run-hours (service manual); ~3-min compressor lockout",
+    "notes": "nameplate_current_a (2.7 A) here is the WHOLE-UNIT RATED MAX at 115 V/60 Hz, not locked-rotor and not run current. Run current is compressor-class (~0.7 A). The 2.7 A ceiling is the basis for overcurrent_trip_a (set ~30% above it). Confirmed the unit never legitimately exceeds it in any mode incl. defrost (observed ~2.4 A defrost-entry peak sits just under)."
+  },
+
+  "factory_spec": {
+    "_comment": "From the interior rating plate (photographed 2026-07-21). Not an EnerGuide/performance sticker; this is the nameplate.",
+    "nameplate": {
+      "rating_v_hz_a": "115 V / 60 Hz / 2.7 A (whole-unit max)",
+      "defrosting_input_w": 198,
+      "icemaker_heater_w": null,
+      "refrigerant": "R600a, 62 g",
+      "production_date": "2022-11",
+      "made_in": "Mexico"
+    },
+    "notes": "Defrost 198 W ~= 1.7 A @ 115 V, matching the observed ~1.9 A settled defrost draw. Icemaker heater line is blank (no icemaker heater load). See docs/todo.md P0 (confirmed root cause) for how these numbers closed the overnight-overcurrent diagnosis.",
+    "energuide": null,
+    "measured_vs_spec": null
+  },
+
+  "channel_binding": {
+    "comment": "As targeted by characterize_load.ino during the 2026-07-19/20 shakedown. 0-indexed array vs 1-indexed physical label is the recurring snare -- BOTH stated. Physical-socket identity NOT yet verified (open item).",
+    "socket_label": "Ch4 / \"Spare\" (per firmware CH_NAME)", "relay_pin": "D5", "sense_pin": "A4", "array_index": 3
+  },
+
+  "electrical": {
+    "running_current_a": { "value": 0.75, "confidence": "low (provisional)", "source": "pre-event baseline of the 2026-07-19/20 shakedown current trace", "notes": "Slightly above the ~0.7 A class. SUPERSEDE from the fresh capture." },
+    "inrush_peak_a": { "value": null, "confidence": null, "source": "", "notes": "WARNING: 10Hz/100ms-RMS sampling cannot resolve true inrush; any value is method-limited, not a surge peak." },
+    "plateau_a": { "value": null, "confidence": null, "source": "", "notes": "Inverter compressor: expect a smooth ramp, not a PTC shelf." },
+    "inrush_duration_s": { "value": null, "confidence": null, "source": "", "notes": "" }
+  },
+
+  "control_constants": {
+    "comment": "Scale off MEASURED running_current_a, never nameplate. overcurrent trip is anchored to the 2.7 A whole-unit nameplate ceiling for this load.",
+    "start_confirm_a": { "value": null, "basis": "~half of running current, above noise floor (~0.10A)." },
+    "stop_a": { "value": null, "basis": "below run, above noise, below start_confirm for hysteresis." },
+    "min_offer_ms": { "value": null, "basis": "measured start-to-steady settle." },
+    "start_debounce_ms": { "value": null, "basis": "sustained above start_confirm confirms real run vs stall." },
+    "stop_debounce_ms": { "value": null, "basis": "confirms a genuine thermostat cutout." },
+    "max_offer_ms": { "value": null, "basis": "policy: satisfied box shows only noise -> release slot." },
+    "min_off_ms": { "value": 180000, "confidence": "must-enforce", "basis": "anti-short-cycle + ~3-min compressor cooldown/lockout, survives resets. Firmware startup hold-off AND overcurrent auto-retry both reuse this." },
+    "overcurrent_trip_a": { "value": 3.5, "basis": "~30% above the 2.7 A whole-unit nameplate max. Never trips on rated-normal operation (defrost ~2.4 A peak), still catches a genuine hard stall (much higher). Replaced the mis-scaled 1.5 A that false-tripped on defrost overnight. In characterize_load.ino." },
+    "overcurrent_trip_ms": { "value": 20000, "basis": "sustained-over debounce; ignores the brief defrost-entry peak and any startup inrush." }
+  },
+
+  "thermal": {
+    "comment": "DUAL compartment: fresh_food + freezer, one RTD each. All null pending the fresh equilibrated capture (shakedown probes were still relocating; the CSV columns even read reversed early on).",
+    "compartments": {
+      "fresh_food": { "rtd_channel": null, "temp_range_f": [null, null], "confidence": null, "notes": "Record probe->column mapping at the rig. Shakedown steady-state: fresh-food ~38 F." },
+      "freezer": { "rtd_channel": null, "temp_range_f": [null, null], "confidence": null, "notes": "Sub-zero branch (P0 fix applies). Shakedown steady-state: freezer ~3 F; ~4 F/hr unpowered warmup during the 7 h post-trip coast." }
+    },
+    "thermostat_band_f": { "compartment": "", "cut_out_f": null, "cut_in_f": null, "band_f": null, "confidence": null, "source": "", "notes": "" },
+    "pulldown_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while ON.", "notes": "" },
+    "warmup_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while OFF.", "notes": "THE OUTAGE-CRITICAL NUMBER. Per compartment." }
+  },
+
+  "duty_cycle": {
+    "value_pct": null, "confidence": "low (provisional, NOT for the budget yet)",
+    "observations": [
+      { "value_pct": 64, "confidence": "low", "ambient": "warm bench (exact ambient not recorded)", "basis": "eyeball of 3 cycles (ON ~30 min / OFF ~20,20,10 min) in the ~2 h before the overnight overcurrent event; EXCLUDES the initial ~6 h pulldown; off-windows were shrinking (frosting toward defrost).", "source": "2026-07-19/20 shakedown", "supersede": "fresh multi-cycle capture at steady state" }
+    ],
+    "notes": "MAKE-OR-BREAK PARAMETER. Note ambient with every observation. ~64% is only a sanity anchor -- too few cycles, warm, pre-defrost. Rotation budget: 3 loads share one inverter one-at-a-time; sum of duties must stay well under 100%."
+  },
+
+  "provenance": {
+    "instruments": [
+      "Arduino Uno WiFi Rev2 (ATmega4809) + ACS712-20A on A4 -- current",
+      "ESP32 + 2x Adafruit MAX31865 + PT1000 RTDs -- temperature (breadboard, intermittent)"
+    ],
+    "capture_files": [
+      "data/kitchen_fridge_run.csv (+ .raw) -- 2026-07-19/20 SHAKEDOWN. Current valid only for unix_s <= 1784522297 (frozen/stale after the 00:38:17 overcurrent latch); temps valid throughout."
+    ],
+    "open_items": [
+      "Fresh equilibrated multi-cycle capture pending (2026-07-21) with the 3.5 A firmware; skip the pulldown, run many hours.",
+      "Verify TARGET_CH=3 (array index 3 = physical Ch4 'Spare') is actually the fridge's physical socket.",
+      "P1 column rename (t1_freezer_f/t2_fridge_f -> neutral) before the fresh capture.",
+      "Record probe -> compartment -> CSV column mapping at the rig.",
+      "Confirm compressor_type (linear vs reciprocating BLDC inverter)."
+    ]
+  }
 }

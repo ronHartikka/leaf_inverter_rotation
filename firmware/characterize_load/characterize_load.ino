@@ -58,22 +58,25 @@ const unsigned long STARTUP_HOLDOFF_MS = 180000UL;  // 180 s = 3 min PTC cooldow
 // The duration must exceed a healthy start's brief inrush (a second or two)
 // so it never false-trips on startup; 20 s is well clear.
 //
-// THRESHOLD RESCALE [2026-07-20, kitchen fridge LG LTCS20020].
+// THRESHOLD RESCALE [2026-07-20/21, kitchen fridge LG LTCS20020B].
 // The old 1.5 A value was scaled for the ~0.67 A dorm-fridge/chest-freezer
 // class. It FALSE-TRIPPED this fridge overnight: at ~8 h accumulated compressor
 // run-time (right at the manual's 7 h defrost floor) the draw stepped from
 // ~0.75 A to ~2.4 A and settled to a flat ~1.9 A for >20 s, crossing 1.5 A and
-// latching the fridge OFF for ~7 h. That was a NORMAL DEFROST cycle: the fridge's
-// interior nameplate reads "Defrosting input: 198 W" (~1.7 A @ 115 V), which
-// matches the flat ~1.9 A; the ~2.4 A entry step is the compressor (~0.75 A)
-// briefly overlapping the energizing heater. (An earlier note here guessed a
-// 52 W / 0.45 A heater from the service manual and mis-read the flat draw as
-// inverter-drive current-limiting; the 198 W nameplate corrects that.)
-// Defrost is a KNOWN, RECURRING ~1.9 A load (every 7-50 compressor run-hours),
-// so the trip MUST sit above it. 3.0 A clears it with margin while still catching
-// a genuine hard stall (locked-rotor current is much higher).
-// Do NOT reuse 1.5 A for this load. See docs/todo.md P0 (confirmed root cause).
-const float         OVERCURRENT_A   = 3.0;      // trip threshold (A) — rescaled
+// latching the fridge OFF for ~7 h. That was a NORMAL DEFROST cycle: the
+// nameplate "Defrosting input" is 198 W (~1.7 A @ 115 V), matching the flat
+// ~1.9 A settled; the ~2.4 A entry step is the compressor (~0.75 A) briefly
+// overlapping the energizing heater. (An earlier note guessed a 52 W / 0.45 A
+// heater from the service manual and mis-read the flat draw as inverter-drive
+// current-limiting; the nameplate corrects that.)
+// THRESHOLD BASIS: the nameplate whole-unit RATING is 115 V / 2.7 A max -- the
+// unit should never legitimately draw more than 2.7 A in ANY mode (defrost peak
+// included; our observed ~2.4 A peak sits just under it). Set the trip ~30% above
+// that rated ceiling: 3.5 A. Never trips on rated-normal operation, still catches
+// a genuine hard stall (locked-rotor current is much higher); the 20 s debounce
+// additionally ignores brief peaks. Do NOT reuse 1.5 A for this load.
+// See docs/todo.md P0 (confirmed root cause).
+const float         OVERCURRENT_A   = 3.5;      // trip (A): ~30% over 2.7 A unit max
 const unsigned long OVERCURRENT_MS  = 20000UL;  // sustained-over time to trip
 
 // After an overcurrent trip: instead of latching off silently FOREVER (the old

@@ -247,6 +247,52 @@ rebuild, dead-reckon warmup should be the PRIMARY safety basis and telemetry onl
 enhancement -- the inverse of the intuitive ordering. Do NOT make rotation safety
 depend on the breadboarded ESP32.
 
+### DEFROST-OPPORTUNITY SCHEDULING (design direction, NOT built) [2026-07-21]
+Source: a Gemini brainstorm (daytime-rotation / nighttime-defrost-window framing),
+refined against OUR measured data + Ron's priorities. Captured now so it isn't lost;
+implement at the production-firmware phase, after the fresh capture gives real defrost
+duration + cadence + per-compartment warmup.
+
+Core reframing (corrects the brainstorm): defrost is an EVENT TO ALLOW, not a window
+to schedule or a state to force.
+- Defrost triggers on 7-50 accumulated COMPRESSOR run-hours -- NOT nightly, NOT
+  wall-clock. Interrupting the fridge doesn't prevent it; run-hours just accrue
+  slower and it fires later. So you never "force" it. You DETECT it and PROTECT it.
+- DETECT: the defrost signature is now characterized -- a flat ~1.9 A / 198 W draw
+  (compressor OFF, resistive heater), distinct from ~0.75 A cycling. When the fridge
+  current shows it, hold the fridge relay ON (uninterrupted) until the draw collapses
+  to ~0 (heater terminated) -> defrost complete -> resume rotation / exit early. Do
+  NOT cut mid-defrost (incomplete melt + the ~3-min lockout).
+- ALLOW, not force (Ron): the point of any "fridge window" is to PERMIT a defrost to
+  finish if one fires, not to make one happen.
+
+PRIORITY ORDERING (Ron, 2026-07-21) -- the scheduler backbone, highest first:
+  1. House warm / pipes safe / occupants comfortable  (furnace)
+  2. Freezer safe  (do not let it cross the refreeze/safety line)
+  3. Fridge defrost-allowance + fridge safe
+  4. Normal duty-cycle balancing
+=> Defrost-allowance is PREEMPTABLE: a cold house or an at-risk freezer reclaims the
+   fridge's window. NB Michigan outages are coldest OVERNIGHT -- exactly when the
+   furnace is needed most -- so a "furnace-off all night to give the fridge a block"
+   scheme (the brainstorm's) is REJECTED; house safety outranks defrost.
+
+ENABLING REQUIREMENT (Ron's Appendix): to arbitrate that ordering the controller must
+know HOUSE + FREEZER + FRIDGE(both compartments) temps CONTINUOUSLY, including while a
+given load's relay is OPEN (the blind-window problem above, now generalized from the
+fridge to the freezer, PLUS a new house-temp sensor). Feeds the temp-to-controller
+link + dead-reckon fallback already specced above. House temp is a new channel to add.
+
+DAYTIME PRE-CONDITIONING (thermal storage): over-condition freezer/house during the
+day to coast through preemption gaps -- BUT size every coast off MEASURED warmup
+rates, not appliance-general optimism. Reality check: the chest freezer warms
+~0.18 F/min (~2-3 h from -10 F to 15 F), NOT the "8-12 h" the brainstorm assumed;
+the fridge freezer compartment coasted ~3.7 F/hr in the overnight event. Replacement
+freezer TBD -- re-measure, don't inherit.
+
+OPEN INVESTIGATION: does THIS LG board's adaptive defrost actually use the door
+switch (door-open counts) + runtime, and does "no overnight door openings -> defrost
+deferred toward the 50 h cap" hold? Unverified assumption; check before relying on it.
+
 ---
 
 ## P0 (CONFIRMED ROOT CAUSE) — Overnight overcurrent latch, 2026-07-20 00:38:17
@@ -332,13 +378,19 @@ the magnitude question; timing was already a tight fit. Detail below.
   boundaries, that would confirm the defrost hypothesis.
 
 ### FIXES NEEDED (all confirmed-necessary regardless of which hypothesis is right)
-- [ ] RESCALE overcurrent_trip_a for this load. Measured normal ceiling ~1.3A;
-      this event's real (non-fault) component may include ~0.45A heater on top of
-      whatever compressor draw remains during the transition. Set trip with real
-      margin above legitimate transients -- proposed ~3A -- while still catching
-      a genuine hard stall (which the manual implies is much higher). Do NOT
-      reuse the dorm-fridge/chest-freezer 1.5A value for this load.
-- [ ] FIX THE LATCH-AND-HALT-FOREVER BEHAVIOR. Even a CORRECT trip left the
+- [x] RESCALE overcurrent_trip_a for this load. DONE [2026-07-21]: set to 3.5 A in
+      characterize_load.ino, anchored to the NAMEPLATE whole-unit max (115 V / 2.7 A)
+      -- the unit never legitimately draws more than 2.7 A in any mode incl. defrost
+      (observed ~2.4 A peak sits under it), so 3.5 A is ~30% over the rated ceiling:
+      no false-trip on rated-normal operation, still catches a genuine hard stall
+      (much higher). 20 s debounce ignores brief peaks. (Supersedes the earlier
+      "~3 A / ~0.45 A heater" guess -- the 2.7 A nameplate is the clean basis.) Do
+      NOT reuse the dorm-fridge/chest-freezer 1.5 A value. Recorded in
+      loads/kitchen_fridge.json control_constants.
+- [x] FIX THE LATCH-AND-HALT-FOREVER BEHAVIOR. DONE [2026-07-20]: characterize_load.ino
+      now auto-retries after the 3-min compressor min-off; after MAX_TRIPS it latches
+      but prints a loud repeating alarm instead of going silent. (Production firmware
+      still wants telemetry/alarm too.) Even a CORRECT trip had left the
       fridge dead and silent for 7 hours with no retry and no alarm -- itself a
       hazard independent of whether the trip was a false positive. Production
       firmware needs auto-retry-after-cooldown and/or an alarm/telemetry signal,
