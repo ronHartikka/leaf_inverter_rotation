@@ -142,8 +142,27 @@ probe placement, hot-restart pause, exact commands, equilibration wait.)
 ## P3 — Repo hygiene / deferred
 
 - [ ] Replace remaining firmware placeholders with real sketches
-      (`characterize_load.ino`, `hw_verify.ino`, `trial_rotation.ino`), then swap
-      their inline boilerplate for the `firmware/shared/*.h` includes.
+      (`hw_verify.ino`, `trial_rotation.ino`), then swap their inline boilerplate
+      for the `firmware/shared/*.h` includes. (`characterize_load.ino` is now the
+      REAL sketch, landed 2026-07-20; its boilerplate still inline -- fold into the
+      shared/ headers as part of the refactor below.)
+- [ ] MULTI-LOAD CHARACTERIZER REFACTOR [decided 2026-07-21, do it when we pivot to
+      the FURNACE -- NOT before a data run]. To characterize furnace + a replacement
+      freezer, keep ONE config-driven `characterize_load.ino` on the shared/ headers,
+      NOT 3 separate sketches. Rationale: 3 sketches = 3 copies of safety-critical
+      safe-startup/auto-zero/overcurrent/logging that drift (the exact anti-pattern
+      shared/ exists to prevent; lessons.md #5). The loads differ ONLY in CONSTANTS,
+      not logic: `TARGET_CH`, `OVERCURRENT_A`(+`_MS`), `STARTUP_HOLDOFF_MS` (180 s for
+      compressors; short/0 for the furnace -- no compressor). Even the furnace, the
+      most different load, needs no special code: the characterizer's job (close one
+      relay, log the RMS current curve, hold an overcurrent backstop) is load-agnostic;
+      you read the furnace's multi-stage startup in the DATA, not the code. Shape:
+      `#define LOAD FRIDGE|FREEZER|FURNACE` -> per-load config table
+      { ch, overcurrent_a, overcurrent_ms, holdoff_ms }; common machinery in shared/.
+      This same change completes the "swap inline boilerplate for shared/ includes"
+      item above. KEEP IT MINIMAL -- the characterizer is a throwaway measuring tool;
+      real per-load behavior (compressor vs furnace sequencing, defrost, min-off)
+      belongs in the PRODUCTION firmware driven by loads/*.json, not here.
 - [ ] `requirements.txt` (or freeze) so the venv is reproducible
       (matplotlib 3.11.1 etc. — currently only in the live venv, not recorded).
 - [ ] Push repo edits of `dual_logger.py` back to the Ubuntu box after changes

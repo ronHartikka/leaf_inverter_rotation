@@ -28,9 +28,14 @@ Usage:
     # or rely on defaults:
     python3 dual_logger.py
 
+    # ports default to auto-detect by USB vendor id -- no --*-port needed:
+    python3 dual_logger.py --out run.csv
+
 Stop with Ctrl-C. Safe for multi-hour / overnight runs (line-buffered).
 
-If a port name is wrong:   ls /dev/ttyUSB* /dev/ttyACM*
+Ports auto-detect by default (immune to ttyACM0<->1 / ttyUSB0<->1 renumbering).
+To see what's attached:     python3 dual_logger.py --list-ports
+To override:               --current-port /dev/ttyACM0 --temp-port /dev/ttyUSB0
 If permission denied:      sudo usermod -aG dialout $USER   (then re-login)
 """
 
@@ -150,106 +155,191 @@ res2_re  = re.compile(r"Resistance2\s*=\s*([\d.]+)")
 fault_re = re.compile(r"[Ff]ault")
 
 
-def reader_current(port, baud, rawf):
+def _serial_lines(requested, role, baud, rawf, tag):
+    """Yield decoded lines from the `role` device forever (until stop). RE-RESOLVES
+    the port on every (re)connect, so a USB re-enumeration -- e.g. the flaky
+    breadboard ESP32 coming back as a different /dev/ttyUSB number -- SELF-HEALS
+    instead of the stream going dead on a stale path. Mirrors every raw line to
+    rawf, tagged CUR/TMP. Shared by both readers so the reconnect logic lives once."""
+    port = None
+    missing_announced = False
+    while not stop.is_set():
+        dev = _find_port(requested, role)
+        if dev is None:
+            if not missing_announced:
+                print(f"# {role}: device not present; waiting for it to (re)appear...")
+                missing_announced = True
+            time.sleep(3)
+            continue
+        missing_announced = False
+        if dev != port:
+            print(f"# {role}: {'reconnected' if port else 'connected'} on {dev}"
+                  + (f" (was {port})" if port else ""))
+            port = dev
+        try:
+            ser = serial.Serial(port, baud, timeout=1)
+        except Exception as e:
+            print(f"# {role} port {port} open failed: {e}; retry in 3s")
+            time.sleep(3)
+            continue
+        try:
+            buf = b""
+            while not stop.is_set():
+                chunk = ser.read(256)
+                if not chunk:
+                    continue
+                buf += chunk
+                while b"\n" in buf:
+                    line, buf = buf.split(b"\n", 1)
+                    text = line.decode("latin-1", errors="replace").rstrip("\r")
+                    rawf.write(f"{time.time():.3f}\t{tag}\t{text}\n")
+                    yield text
+        except Exception as e:
+            print(f"# {role} reader error: {e}; re-resolving + reopening")
+            time.sleep(2)
+        finally:
+            try: ser.close()
+            except Exception: pass
+
+
+def reader_current(requested, baud, rawf):
     """Arduino current stream: CSV lines t_ms,amps,note."""
-    while not stop.is_set():
-        try:
-            ser = serial.Serial(port, baud, timeout=1)
-        except Exception as e:
-            print(f"# current port {port} open failed: {e}; retry in 3s")
-            time.sleep(3)
-            continue
-        buf = b""
-        try:
-            while not stop.is_set():
-                chunk = ser.read(256)
-                if not chunk:
-                    continue
-                buf += chunk
-                while b"\n" in buf:
-                    line, buf = buf.split(b"\n", 1)
-                    text = line.decode("latin-1", errors="replace").rstrip("\r")
-                    rawf.write(f"{time.time():.3f}\tCUR\t{text}\n")
-                    m = cur_re.match(text)
-                    if m:
-                        with lock:
-                            state["amps"] = float(m.group(2))
-                            state["amps_note"] = m.group(3) or ""
-        except Exception as e:
-            print(f"# current reader error: {e}; reopening")
-            time.sleep(2)
-        finally:
-            try: ser.close()
-            except Exception: pass
+    for text in _serial_lines(requested, "current", baud, rawf, "CUR"):
+        m = cur_re.match(text)
+        if m:
+            with lock:
+                state["amps"] = float(m.group(2))
+                state["amps_note"] = m.group(3) or ""
 
 
-def reader_temp(port, baud, rawf):
-    """ESP32 RTD stream: multi-line blocks; we parse Resistance1/2 + faults."""
-    while not stop.is_set():
-        try:
-            ser = serial.Serial(port, baud, timeout=1)
-        except Exception as e:
-            print(f"# temp port {port} open failed: {e}; retry in 3s")
-            time.sleep(3)
-            continue
-        buf = b""
-        pending_r1 = None
-        pending_fault = 0
-        try:
-            while not stop.is_set():
-                chunk = ser.read(256)
-                if not chunk:
-                    continue
-                buf += chunk
-                while b"\n" in buf:
-                    line, buf = buf.split(b"\n", 1)
-                    text = line.decode("latin-1", errors="replace").rstrip("\r")
-                    rawf.write(f"{time.time():.3f}\tTMP\t{text}\n")
-                    if fault_re.search(text):
-                        pending_fault = 1
-                    m1 = res1_re.search(text)
-                    if m1:
-                        pending_r1 = float(m1.group(1))
-                    m2 = res2_re.search(text)
-                    if m2 and pending_r1 is not None:
-                        r2 = float(m2.group(1))
-                        try:
-                            t1 = res_to_f(pending_r1)
-                            t2 = res_to_f(r2)
-                        except Exception:
-                            t1 = t2 = None
-                        with lock:
-                            state["res1"] = pending_r1
-                            state["res2"] = r2
-                            state["t1_f"] = t1
-                            state["t2_f"] = t2
-                            state["fault"] = pending_fault
-                        pending_r1 = None
-                        pending_fault = 0
-        except Exception as e:
-            print(f"# temp reader error: {e}; reopening")
-            time.sleep(2)
-        finally:
-            try: ser.close()
-            except Exception: pass
+def reader_temp(requested, baud, rawf):
+    """ESP32 RTD stream: multi-line blocks; parse Resistance1/2 + faults, pair per block."""
+    pending_r1 = None
+    pending_fault = 0
+    for text in _serial_lines(requested, "temp", baud, rawf, "TMP"):
+        if fault_re.search(text):
+            pending_fault = 1
+        m1 = res1_re.search(text)
+        if m1:
+            pending_r1 = float(m1.group(1))
+        m2 = res2_re.search(text)
+        if m2 and pending_r1 is not None:
+            r2 = float(m2.group(1))
+            try:
+                t1 = res_to_f(pending_r1)
+                t2 = res_to_f(r2)
+            except Exception:
+                t1 = t2 = None
+            with lock:
+                state["res1"] = pending_r1
+                state["res2"] = r2
+                state["t1_f"] = t1
+                state["t2_f"] = t2
+                state["fault"] = pending_fault
+            pending_r1 = None
+            pending_fault = 0
+
+
+# ---- USB serial port auto-detection ----
+# Linux renumbers /dev/ttyACM* and /dev/ttyUSB* across reboots/reconnects (0<->1),
+# which silently points the logger at the wrong device -- the #1 startup failure.
+# The Arduino (current) and the ESP32's USB-UART bridge (temps) are DIFFERENT chips,
+# so we pick each by USB vendor id regardless of the /dev number. Falls back to the
+# sole ttyACM*/ttyUSB* when VID is unavailable, and REFUSES to guess when ambiguous
+# so we never silently log the wrong stream.
+_ARDUINO_VIDS      = {0x2341, 0x2A03}            # Arduino LLC / arduino.org (Uno WiFi Rev2)
+_ESP32_BRIDGE_VIDS = {0x10C4, 0x1A86, 0x0403}    # CP210x, CH340, FTDI
+
+def _comports():
+    from serial.tools import list_ports
+    return list(list_ports.comports())
+
+def list_ports_and_exit():
+    ports = _comports()
+    if not ports:
+        print("# no serial ports found")
+        return
+    print("# serial ports (device  vid:pid  serial  description):")
+    for p in ports:
+        vid = f"{p.vid:04x}" if p.vid else "----"
+        pid = f"{p.pid:04x}" if p.pid else "----"
+        print(f"  {p.device}  {vid}:{pid}  {p.serial_number}  {p.description}")
+
+def _candidates(role):
+    """Serial devices that could be the `role` device: match by USB vendor id,
+    else fall back to the sole ttyACM*/ttyUSB*."""
+    if role == "current":
+        vids, kind = _ARDUINO_VIDS, "ttyACM"
+    else:
+        vids, kind = _ESP32_BRIDGE_VIDS, "ttyUSB"
+    ports = _comports()
+    return [p for p in ports if p.vid in vids] or [p for p in ports if kind in p.device]
+
+def _find_port(requested, role):
+    """Non-fatal resolution for (re)connection: a device path, or None if not
+    uniquely found. An explicit --*-port is returned as-is (may be absent -> the
+    caller retries). 'auto' picks the sole candidate. Used by the reader loops."""
+    if requested and requested != "auto":
+        return requested
+    cands = _candidates(role)
+    return cands[0].device if len(cands) == 1 else None
+
+def resolve_port(requested, role):
+    """Strict STARTUP resolution: print the pick, or exit loudly if absent/ambiguous
+    so we fail fast without creating an empty CSV. (Reconnection uses _find_port.)
+    An explicit /dev path is passed through unchanged."""
+    if requested and requested != "auto":
+        return requested
+    tag = "Arduino (current)" if role == "current" else "ESP32 bridge (temp)"
+    cands = _candidates(role)
+    if len(cands) == 1:
+        print(f"# auto-detect {role}: {cands[0].device}  <- {tag}: {cands[0].description}")
+        return cands[0].device
+    if not cands:
+        sys.exit(f"# auto-detect {role}: no {tag} found. Plug it in, or pass "
+                 f"--{role}-port explicitly.  (run: dual_logger.py --list-ports)")
+    sys.exit(f"# auto-detect {role}: AMBIGUOUS -- {len(cands)} candidates "
+             f"[{', '.join(c.device for c in cands)}]. Pass --{role}-port explicitly.")
 
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--current-port", default="/dev/ttyACM0")
+    ap.add_argument("--current-port", default="auto",
+                    help="Arduino current stream. 'auto' (default) picks it by USB "
+                         "vendor id -- immune to ttyACM0<->1 renumbering; or pass /dev/ttyACM0.")
     ap.add_argument("--current-baud", type=int, default=115200)
-    ap.add_argument("--temp-port",    default="/dev/ttyUSB0")
+    ap.add_argument("--temp-port",    default="auto",
+                    help="ESP32 temp stream. 'auto' (default) picks the USB-UART bridge; "
+                         "or pass /dev/ttyUSB0.")
     ap.add_argument("--temp-baud",    type=int, default=115200)
-    ap.add_argument("--out",          default="run.csv")
+    ap.add_argument("--out",          default=None,
+                    help="output CSV. Default: a timestamped run_YYYYmmdd_HHMMSS.csv, so "
+                         "forgetting --out (or replaying a stale command) can NEVER clobber "
+                         "an existing capture -- it just makes a fresh unique file.")
     ap.add_argument("--rate-hz", type=float, default=10.0,
                     help="merged-row cadence (Hz). 10 Hz covers the Arduino's fastest "
                          "(100ms burst) sampling; temps (1 Hz) hold between updates.")
     ap.add_argument("--self-test", action="store_true",
                     help="run the PT1000 conversion self-test and exit (no capture).")
+    ap.add_argument("--list-ports", action="store_true",
+                    help="list all serial ports (device / vid:pid / serial) and exit.")
     args = ap.parse_args()
 
+    if args.list_ports:
+        list_ports_and_exit()
+        sys.exit(0)
     if args.self_test:
         sys.exit(0 if _self_test() else 1)
+
+    # Timestamped default so a forgotten/stale --out never collides with real data.
+    if args.out is None:
+        args.out = datetime.now().strftime("run_%Y%m%d_%H%M%S.csv")
+        print(f"# no --out given; using timestamped {args.out}")
+
+    # Resolve ports BEFORE creating any file, so a missing device fails fast
+    # without leaving an empty CSV behind.
+    cur_port = resolve_port(args.current_port, "current")
+    tmp_port = resolve_port(args.temp_port, "temp")
 
     raw_path = args.out.rsplit(".", 1)[0] + ".raw"
     # Never clobber an existing capture. Multi-hour runs are expensive and
@@ -271,12 +361,14 @@ def main():
     outf.write("unix_s,iso,current_a,current_note,"
                "t1_freezer_f,t2_fridge_f,res1_ohm,res2_ohm,fault\n")
 
-    print(f"# current: {args.current_port} @ {args.current_baud}")
-    print(f"# temp:    {args.temp_port} @ {args.temp_baud}")
+    print(f"# current: {cur_port} @ {args.current_baud}")
+    print(f"# temp:    {tmp_port} @ {args.temp_baud}")
     print(f"# merged -> {args.out}  ({args.rate_hz:g} Hz sample-and-hold)")
     print(f"# raw    -> {raw_path}")
     print("# one machine, one clock: no post-hoc alignment needed. Ctrl-C to stop.\n")
 
+    # Readers get the ORIGINAL request (e.g. "auto"), not the resolved path, so
+    # they re-resolve on every reconnect and follow a re-enumerated device.
     tc = threading.Thread(target=reader_current,
                           args=(args.current_port, args.current_baud, rawf), daemon=True)
     tt = threading.Thread(target=reader_temp,
