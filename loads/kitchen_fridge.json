@@ -82,11 +82,12 @@
   },
 
   "duty_cycle": {
-    "value_pct": null, "confidence": "low (provisional, NOT for the budget yet)",
+    "value_pct": 59, "confidence": "medium for NIGHT baseline; daytime pending",
     "observations": [
-      { "value_pct": 64, "confidence": "low", "ambient": "warm bench (exact ambient not recorded)", "basis": "eyeball of 3 cycles (ON ~30 min / OFF ~20,20,10 min) in the ~2 h before the overnight overcurrent event; EXCLUDES the initial ~6 h pulldown; off-windows were shrinking (frosting toward defrost).", "source": "2026-07-19/20 shakedown", "supersede": "fresh multi-cycle capture at steady state" }
+      { "value_pct": 59, "confidence": "medium", "ambient": "night, undisturbed (few door openings); exact ambient not logged", "basis": "12 clean steady cycles over 11 h overnight; ON mean ~32.5 min, OFF mean ~21 min. Excludes pulldown + a door-slam artifact.", "source": "2026-07-21/22 fresh capture (night)", "supersede": "recompute on the full day+night file after the 10pm 2026-07-22 cutoff" },
+      { "value_pct": 64, "confidence": "low", "ambient": "warm bench", "basis": "eyeball of 3 cycles before the overnight overcurrent event; shakedown.", "source": "2026-07-19/20 shakedown" }
     ],
-    "notes": "MAKE-OR-BREAK PARAMETER. Note ambient with every observation. ~64% is only a sanity anchor -- too few cycles, warm, pre-defrost. Rotation budget: 3 loads share one inverter one-at-a-time; sum of duties must stay well under 100%."
+    "notes": "MAKE-OR-BREAK PARAMETER. ~59-60% is the NIGHT/undisturbed baseline (the fridge settles here). DAYTIME capture running till 10pm 2026-07-22 will add the doors-open, warmer-ambient regime -> likely HIGHER; that's the realistic-use number. BUT: free-running duty is NOT the deployment figure -- the system runs hours-on/hours-off and the gating unknown is the REPLACEMENT FREEZER's duty UNDER INTERRUPTION, not more fridge data. See docs/rotation_budget.md 'The real question'."
   },
 
   "provenance": {
@@ -98,8 +99,9 @@
       "data/kitchen_fridge_run.csv (+ .raw) -- 2026-07-19/20 SHAKEDOWN. Current valid only for unix_s <= 1784522297 (frozen/stale after the 00:38:17 overcurrent latch); temps valid throughout."
     ],
     "open_items": [
-      "Fresh multi-cycle capture IN PROGRESS (2026-07-21) with the 3.5 A firmware -- captured a full power-up defrost + recovery clean, no false trip; still need many STEADY cycles for the duty number.",
-      "Resolve defrost trigger: power-on-triggered vs run-hours-due (watch for a 2nd defrost this run, or cycle power to test) -- determines whether every rotation re-power defrosts.",
+      "Night baseline DONE (2026-07-21/22): ~59% duty, defrost cycle, band. Daytime capture running till 10pm 2026-07-22 -> then finalize per-compartment warmup + thermostat band + day-vs-night duty on the full file.",
+      "NEXT REAL OBJECTIVE (not more fridge data): characterize the REPLACEMENT freezer UNDER INTENTIONAL INTERRUPTION -- the gating unknown for the rotation budget. See docs/rotation_budget.md 'The real question'.",
+      "Defrost trigger (power-on vs run-hours) UNRESOLVED but DEPRIORITIZED as intellectual-only; practically, budget a ~30 min defrost at the start of each power block. Do not chase the mechanism.",
       "Verify TARGET_CH=3 (array index 3 = physical Ch4 'Spare') is actually the fridge's physical socket.",
       "RESOLVED 2026-07-21: probe->compartment->column mapping confirmed -- t1_freezer_f = freezer (RTD ch1), t2_fridge_f = fresh-food (RTD ch2); column names correct for this run.",
       "Confirm compressor_type (linear vs reciprocating BLDC inverter)."
