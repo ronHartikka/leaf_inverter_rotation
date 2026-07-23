@@ -75,6 +75,15 @@ Do we have enough to answer confidently? NO. Three reasons, in priority order:
    regime — not more free-running fridge data — is the single measurement that most
    moves the budget toward a confident yes/no. The fridge side is essentially done
    (~60% night baseline; daytime baseline in progress).
+   REPLACEMENT FREEZER: not yet ordered (~2026-07-23), going ENERGY STAR for better
+   insulation -> expect lower duty + slower warmup (favorable for the budget). Re-
+   measure when it arrives; do NOT inherit the old (faulty ~70%) unit's numbers.
+
+INTERIM CHEAP EXPERIMENT (before the freezer, on the fridge already on the rig):
+the INTERRUPTION TEST (docs/interruption_test.md) — cut fridge power during a natural
+off period for a swept Δt and see when it stays free vs costs recovery. Tests the
+central "off-periods are stealable" hypothesis + whether power-cycling disrupts the
+run-hours defrost schedule. Yields the max free off-window (a scheduler parameter).
 
 PRACTICAL NOTE — DEFROST LOGIC [confirmed by SERVICE MANUAL + 2 observed defrosts,
 2026-07-22]:
