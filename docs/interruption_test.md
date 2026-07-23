@@ -12,6 +12,16 @@ each): if we cut power during an off period and restore it before the box would 
 needed the compressor, the fridge shouldn't even "notice." Does it? And how does the
 answer depend on how long the power is off (Δt)?
 
+## TWO different off-window numbers (they serve different regimes)
+- **"FREE" window (~20 min):** Δt short enough that the box stays below cut-in, so the
+  compressor just stays off on restore — zero cost, the fridge never notices. Good for
+  FINE-GRAINED rotation (steal the natural idle gap). This is what Part A below measures.
+- **"SAFE" window (hours):** how long power can be cut before a compartment crosses the
+  40 F food-safety line, ACCEPTING a recovery run afterward. This is the binding number
+  for HOURS-SCALE rotation (Ron's intended use: hours on / hours off). The free window
+  (~20 min) is far too short for that; the safe window is what matters, and it is what the
+  colder-setpoint and ice-block strategies EXTEND. Part B below measures it across configs.
+
 ## Two clocks — Δt is compared against each
 The fridge's response is governed by two independent things, and the whole result is
 "which threshold did Δt cross."
@@ -45,6 +55,7 @@ The fridge's response is governed by two independent things, and the whole resul
    deliberate: the compressor is already resting, so removing power has **no hot-restart
    hazard**, and it isolates the "interrupt during an off period" case.
 
+## PART A — the Δt sweep (the FREE window)
 ## Procedure — a Δt sweep (one afternoon)
 Power is removed by **unplugging the fridge from the gear socket** and restored by
 replugging (the gear relay stays closed; the sketch keeps running; the ESP32/temps are on
@@ -96,6 +107,50 @@ The **defrost counter reset threshold** needs watching defrost *timing* over the
 AFTER long-Δt interruptions (does a defrost come at 4 run-hours post-restore, or does the
 prior count resume?). The 3-min data point says short interruptions preserve the count; the
 sweep's long-Δt trials + follow-on watching bracket the threshold.
+
+## PART B — Outage-config coast experiments (the SAFE-window strategies)
+Everything above (Part A) measures the ~20 min FREE window. Part B measures the SAFE
+window — time to reach the 40 F food-safety line while unpowered — and how two cheap
+strategies extend it. This is the number that governs HOURS-SCALE rotation, so it is
+arguably the more important half for the deployed system.
+
+Common measured output for every config: **COAST-TO-SAFETY per compartment** = from a
+natural cut-out, cut power and let it warm; record the time for freezer air and
+fresh-food air each to cross 40 F (also note the curve, not just the crossing). Plus the
+recovery run needed to return to setpoint after. (Same rig, same unplug-from-gear method;
+temps keep logging while unpowered.)
+
+Four configs (do baseline first; add one variable at a time so effects are separable):
+
+| Config        | Setpoint  | Ice blocks        | What it isolates                                  |
+|---------------|-----------|-------------------|---------------------------------------------------|
+| Baseline      | 3/5 lights| none              | current coast + steady duty (reference)           |
+| Colder        | 4/5 lights| none              | Idea 1: coast GAIN vs the DUTY-cost penalty       |
+| Mass          | 3/5 lights| +blocks/compartment| Idea 2: coast gain at ~no steady-duty cost        |
+| Outage config | 4/5 lights| +blocks/compartment| the real deployment combo (both levers together)  |
+
+Idea-1 note (colder setpoint): expect LONGER coast but HIGHER steady duty (bigger ΔT to
+ambient -> more heat leak). It is a TRADE (buy coast with duty), not a free win. Record
+both the new steady duty AND the coast gain so the trade can be judged. Food-safety is not
+the concern (colder is safe); the duty penalty is. Current baseline: 3/5 lights gives RTD
+averages ~0 F freezer / ~37 F fresh-food (good).
+
+Idea-2 note (ice blocks): each block is labeled "= 7 lb ice" (~1000 BTU latent at 32 F +
+~100 BTU sensible), pre-frozen and living in the CHEST FREEZER at ~0 F. In outages Ron
+already moves a couple into EACH fridge compartment (leaving one in the chest freezer).
+This adds coast runway with ~NO steady-duty cost (once frozen they are passive buffer;
+they arrive pre-charged). Rough magnitude: fridge heat leak ~few hundred BTU/hr, so one
+block ~ a couple hours of coast; two per compartment ~ many hours -> potentially the thing
+that makes HOURS-off safe for the fridge. Compartment nuance: blocks buffer hardest at
+their 32 F melt point -> ideal for fresh-food (~37 F); for the freezer (~0 F) they first
+buffer cold (sensible) then, once at 32 F, hold the freezer up near 32 F -- warmer than
+normal but still food-safe (<40 F). So expect the freezer to ride warmer during a long
+coast WITH blocks, but stay safe far longer. Staging: blocks are already at ~0 F in the
+chest freezer -> ready; just relocate before the Mass/Outage runs.
+
+Part-B caveat: coast-to-40F runs take HOURS each (esp. with blocks) and warm the box
+substantially -> each run needs a full recovery before the next. Budget a day+ for the
+full four-config set; you need not run all four in one sitting.
 
 ## Relation to the replacement freezer
 This fridge experiment tests "are off-periods stealable" on the appliance we have. The
