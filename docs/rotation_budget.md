@@ -76,10 +76,14 @@ Do we have enough to answer confidently? NO. Three reasons, in priority order:
    moves the budget toward a confident yes/no. The fridge side is essentially done
    (~60% night baseline; daytime baseline in progress).
 
-PRACTICAL NOTE (carry forward, do not chase the mechanism): the fridge tends to
-DEFROST right when power is restored. So each multi-hour ON block in deployment may
-open with a ~30 min 198 W defrost + recovery — budget for it; no need to understand
-the trigger logic further.
+PRACTICAL NOTE — DEFROST IS RECURRING & AUTONOMOUS [updated 2026-07-22, 2 defrosts
+observed]: the fridge self-defrosts ~ONCE PER DAY on its own schedule (~13-14
+compressor run-hours / ~23.5 h apart, ~30 min each, ~198 W, compressor off),
+INDEPENDENT of power cycling — a 2nd defrost fired mid-run with no power cycle. It
+ALSO defrosts at power-restore if one is overdue. So the schedule must budget a
+recurring ~daily 30 min / 198 W defrost window, not just one at each power block's
+start. Mechanism (run-hours vs 24h-timer) not fully pinned from 2 points and not
+worth chasing further — the ~daily recurrence + ~30 min duration is the actionable part.
 
 ## Rule of thumb
 - 3 × 50% = 150% → impossible.

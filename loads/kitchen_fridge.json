@@ -78,7 +78,9 @@
     "dwell_note": "~7 min from defrost end to compressor restart (drip/drain + anti-short-cycle). Normal.",
     "post_defrost_pulldown_a": 1.5,
     "pulldown_note": "compressor restarts at ~1.5 A (inverter HIGH speed to recover the warm box), expected to taper toward ~0.75 A near setpoint. NB ~1.5 A sits right at the OLD 1.5 A trip -> the 3.5 A rescale was needed for normal post-defrost recovery too, not just the heater.",
-    "trigger": "UNRESOLVED: went straight to defrost on THIS power-up (vs the shakedown's 6 h pulldown first). Power-on-triggered vs run-hours-due not yet distinguished. If power-on-triggered, EVERY rotation re-power could defrost -> major scheduling impact. Resolve by watching for a 2nd defrost on the ~7-50 run-hour schedule this run, or by deliberately cycling power later."
+    "trigger": "RESOLVED 2026-07-22: AUTONOMOUS / self-scheduled, NOT power-on-triggered. A 2nd defrost fired mid-run (13:55-14:26, 30.4 min, ~1.87 A) with NO power cycle, ~23.5 h after the 1st (~13-14 compressor run-hours at ~60% duty; low end of the manual's 7-50 h window). The immediate defrost on power-up was just an overdue defrost firing at restore. So: fridge defrosts ~ONCE PER DAY on its own regardless of power cycling. Cadence from only 2 points -- can't fully separate run-hours vs ~24h-timer, but definitely not power-on-only.",
+    "duration_confirmed": "Both observed defrosts ran ~30 min (29.0 and 30.4) and peaked the freezer ~+22-24 F -> ~30 min defrost duration is repeatable.",
+    "budget_impact": "Rotation must expect a RECURRING ~daily ~30 min / 198 W defrost (autonomous), on top of any defrost at power-restore. Not a one-off."
   },
 
   "duty_cycle": {
