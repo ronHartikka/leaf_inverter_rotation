@@ -282,9 +282,20 @@ loads/kitchen_fridge.json "defrost"]:
   declaring "defrost over", or it false-ends on every measurement dip.
 - Sensor-based ADAPTIVE defrost (thermistor-terminated) confirmed -- a smart board deciding
   when to stop, not a fixed bimetal.
-- POST-DEFROST: ~7 min dwell (no compressor), then restart at ~1.5 A (inverter high-speed
-  pulldown of the warm box) tapering toward ~0.75 A. Budget the fridge block as one
+- POST-DEFROST: ~7 min dwell (no compressor), then restart at ~1.0-1.4 A (inverter high-speed
+  pulldown of the warm box) tapering toward ~0.8 A. Budget the fridge block as one
   indivisible unit: ~30 min defrost + ~7 min dwell + a pulldown-recovery window.
+- PROTECTED WINDOW = DEFROST + RECOVERY ~= 2.5 h [Ron's strategy point, measured 2026-07-22].
+  After defrost the box is at its WARMEST (freezer +17..+22 F) and un-recovered; the clean
+  2nd defrost then ran the compressor CONTINUOUSLY ~2 h to pull back to cut-out. Cutting the
+  fridge anywhere in defrost-or-recovery = warming from the worst point + food-safety risk.
+  RULE: once a defrost is detected, protect the fridge through defrost AND the ~2 h recovery
+  before it is eligible to be cut for rotation. (This EXTENDS the "min uninterrupted window":
+  it is not ~30 min but ~2.5 h when a defrost is in play.)
+- DEFROST TRIGGER (manual-confirmed): compressor RUN-HOURS (7-50 h, adaptive by door-open
+  time; 4 h after a true power restore). => rotation, by interrupting the fridge, STRETCHES
+  the calendar interval between defrosts (run-hours accrue slower). And door activity shortens
+  it (daytime defrosts sooner than undisturbed nights).
 - OPEN (the big one): defrost fired IMMEDIATELY on this power-up (vs the shakedown's 6 h
   pulldown-first). If defrost is POWER-ON-triggered, EVERY rotation re-power could defrost and
   dominate the whole schedule. Unresolved -- watch for a 2nd defrost this run, or test by
