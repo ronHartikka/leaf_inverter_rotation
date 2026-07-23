@@ -107,9 +107,10 @@ ADAPTIVE TRIGGER CONFIRMED FROM DATA [3 defrosts by 2026-07-23]: integrated comp
 run-hours between defrosts were 15.0 (quiet overnight interval, 65% duty) then 8.0
 (heavy dinner/evening door activity, 81% duty) -- the threshold slid 15->8 run-hours
 toward the 7 h floor as door/frost increased, exactly the manual's "7-50 h by door-open
-time." => FAVORABLE FOR THE BUDGET: a real outage (people open the fridge far less)
-pushes defrost toward the 50 h end, making it RARE; our warm-bench doors-open testing is
-the WORST case for defrost frequency. Also: effective fridge duty for budgeting =
+time." => MILD tailwind only (do NOT bank it): outage door use is somewhat lower, so
+defrost is somewhat less frequent -- BUT the household still eats and cooks during
+outages [Ron, 2026-07-23], so assume a MODEST reduction, not a large one; do not rely
+on defrost being rare. Also: effective fridge duty for budgeting =
 ~59% steady cycling PLUS periodic defrost+recovery overhead (each defrost adds ~30 min
 heater + ~2 h recovery run), which scales with defrost frequency i.e. with use.
 
