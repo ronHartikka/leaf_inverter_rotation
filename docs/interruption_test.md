@@ -115,10 +115,31 @@ strategies extend it. This is the number that governs HOURS-SCALE rotation, so i
 arguably the more important half for the deployed system.
 
 Common measured output for every config: **COAST-TO-SAFETY per compartment** = from a
-natural cut-out, cut power and let it warm; record the time for freezer air and
-fresh-food air each to cross 40 F (also note the curve, not just the crossing). Plus the
-recovery run needed to return to setpoint after. (Same rig, same unplug-from-gear method;
-temps keep logging while unpowered.)
+natural cut-out, cut power and let it warm; record the time for each compartment to reach
+its Tmax (below), and the curve. Plus the recovery run needed to return to setpoint after.
+(Same rig, same unplug-from-gear method; temps keep logging while unpowered.)
+
+### Tmax (abort thresholds on OUR air RTDs) [decided 2026-07-23]
+- **Tmax_fresh = 42 F**, **Tmax_freezer = 19 F.**
+- Rationale: these are the fridge's OWN air excursions at defrost, which the manufacturer
+  treats as food-safe (fresh air routinely hits ~40-42 F, freezer air ~16-19 F, every
+  defrost, x4 observed). So they are manufacturer-demonstrated-safe air limits on our
+  probes. Freezer 19 F also keeps food well FROZEN (below thaw), protecting quality;
+  fresh 42 F gives real coast room above the ~37 F setpoint (the food lags/damps the air,
+  so ~42 F air != food over 40 F).
+- CAVEAT (timescale): the air-leads-food margin SHRINKS on hours-scale coasts (food
+  catches up to air), so 42 F is generous for short excursions but tighter over hours.
+  Validate with the food-simulant probe below before leaning on it for multi-hour offs.
+- These are the abort thresholds for both the coast tests AND the deployment control law
+  (P2+ "abort on either compartment's Tmax, restore power, hold until recovered").
+
+Add a **food-simulant probe** for these runs: an RTD in a water bottle (or in an ice
+block) beside the air probe, to measure FOOD temp vs AIR temp directly at the coast
+timescale. This is what pins how far the air RTD can lead the food -> sets Tmax on data,
+not guesswork. Do NOT map our air RTDs to the fridge's internal defrost/coil sensor: ours
+read compartment AIR; the fridge's defrost sensor is on the evaporator COIL (heated to
+50 F during defrost) -- a different coupling in defrost vs coast. Air is the right signal
+for FOOD safety anyway (food lives in the air, not on the coil).
 
 Four configs (do baseline first; add one variable at a time so effects are separable):
 
