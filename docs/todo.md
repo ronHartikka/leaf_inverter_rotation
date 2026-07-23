@@ -220,6 +220,46 @@ CRITICAL correction to the earlier cross-check plan:
 Emerged from characterizing the LG LTCS20020 (linear BLDC inverter). Depends on
 tomorrow's data: DOES the compressor ever fully shut off, or modulate continuously?
 
+### CONTROL ARCHITECTURE — demand-aware dispatch ["New Thinking", Ron, 2026-07-23]
+Supersedes the blind round-robin mental model. Records a significant design shift.
+
+OLD (blind offering): the only way to learn whether a load "wants" power was to OFFER it
+(close its relay) and watch the current. Offering is EXPENSIVE -- you tie up the inverter
+on a load that may not need it, and a "refusal" (load already satisfied) is a wasted slot.
+Especially costly for the fridge and furnace (each offer must be held long enough to see
+if it draws sustained current).
+
+NEW (demand-aware): MONITOR ALL TEMPERATURES CONTINUOUSLY -- fridge fresh-food, fridge
+freezer, chest freezer, (deployment) freezer, HOUSE, and outdoor -- so demand is KNOWN,
+not probed. Offer power to a load ONLY when its temperature says it needs it:
+- Knowing freezer temp -> only offer when it's above its cut-in -> far fewer refusals.
+- Knowing house temp -> only offer the furnace when the house actually needs heat.
+This converts the scheduler from blind polling into DEMAND-AWARE DISPATCH: no wasted
+offers, no probing loads that don't need power.
+
+CONSEQUENCES:
+1. Temperature telemetry is promoted from "nice enhancement" to the SPINE of the control
+   loop. This makes the ESP32->Arduino temp push (TEMP-TO-CONTROLLER LINK, below) central,
+   not optional -- the controller must know temps while a load's relay is OPEN.
+2. ABORT-ON-Tmax safety law (same requirement, safety side): when power is cut from the
+   fridge for a planned/rotation off-period, watch BOTH compartments and RESTORE power the
+   instant EITHER crosses its Tmax; hold power until recovered to setpoint before it's
+   eligible to be offered-away again. Tmax on our air RTDs DECIDED: fresh 42 F, freezer
+   19 F (docs/interruption_test.md). The SHORTER-coasting compartment governs, and which
+   one that is depends on config (ice blocks flip it). Note the air-leads-food offset is
+   timescale-dependent (validate with the food-simulant probe) -- do not over-trust "air
+   over 40 = food safe" on hours-scale coasts.
+3. FAIL-SAFE (critical): abort-on-Tmax depends on LIVE temps, so losing a temp feed
+   mid-off-period is a SAFETY event. Rule: telemetry drops -> fail safe -> RESTORE POWER
+   (or fall back to a dead-reckoned worst-case warmup and restore conservatively). NEVER
+   continue a planned off-period blind. => This raises the stakes on sensor reliability:
+   the breadboard ESP32 (intermittent, ~3-8% faults) must be rebuilt on soldered protoboard
+   (P3) before demand-aware control can be TRUSTED for safety; until then dead-reckon warmup
+   stays the PRIMARY safety basis, telemetry an enhancement (see SAFETY SEQUENCING NOTE).
+The interruption/coast experiments (docs/interruption_test.md) characterize the inputs this
+architecture needs: the Tmax margins, per-compartment coast times, and warmup slopes for
+dead-reckoning.
+
 **RESOLVED [2026-07-20]: it CLEANLY SHUTS OFF — continuous-modulation scenario
 ruled out.** The 2026-07-19/20 run showed hard cycling with clean off-windows:
 after an initial ~6 h continuous pulldown, it ran ON ~30 min / OFF ~20, 20, 10 min
