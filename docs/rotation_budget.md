@@ -76,14 +76,23 @@ Do we have enough to answer confidently? NO. Three reasons, in priority order:
    moves the budget toward a confident yes/no. The fridge side is essentially done
    (~60% night baseline; daytime baseline in progress).
 
-PRACTICAL NOTE — DEFROST IS RECURRING & AUTONOMOUS [updated 2026-07-22, 2 defrosts
-observed]: the fridge self-defrosts ~ONCE PER DAY on its own schedule (~13-14
-compressor run-hours / ~23.5 h apart, ~30 min each, ~198 W, compressor off),
-INDEPENDENT of power cycling — a 2nd defrost fired mid-run with no power cycle. It
-ALSO defrosts at power-restore if one is overdue. So the schedule must budget a
-recurring ~daily 30 min / 198 W defrost window, not just one at each power block's
-start. Mechanism (run-hours vs 24h-timer) not fully pinned from 2 points and not
-worth chasing further — the ~daily recurrence + ~30 min duration is the actionable part.
+PRACTICAL NOTE — DEFROST LOGIC [confirmed by SERVICE MANUAL + 2 observed defrosts,
+2026-07-22]:
+- Trigger = COMPRESSOR RUN-HOURS (not wall-clock, not power-on). Manual: defrost
+  fires between 7-50 accumulated compressor run-hours, adaptive by door-open time
+  (more door-open -> more frost -> sooner). After a true power restore: 4 run-hours.
+- Duration terminates when the evaporator defrost SENSOR hits 50 F -> frost-load-
+  dependent, ~30 min typical (our 2 defrosts) but up to a 2 h ceiling if heavily frosted.
+- Load: ~198 W / ~1.8 A, compressor off, during the window.
+Two consequences for the schedule:
+  (1) run-hours basis => ROTATION STRETCHES the calendar defrost interval: an
+      interrupted fridge accrues run-hours slower, so it defrosts less often per day
+      than the ~daily seen at ~60% continuous duty. Favorable — spreads the load.
+  (2) after a real outage/restore, the first defrost comes SOON (4 run-hours) => the
+      first big fridge power-block after restore should budget a ~30 min defrost early.
+Actionable takeaway: budget a recurring defrost window (~30 min typ, up to 2 h), and
+expect one early in the first post-restore fridge block. Frequency scales with
+door-open activity (daytime > undisturbed night).
 
 ## Rule of thumb
 - 3 × 50% = 150% → impossible.
