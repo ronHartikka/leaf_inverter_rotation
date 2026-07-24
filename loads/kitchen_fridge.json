@@ -56,14 +56,29 @@
   },
 
   "thermal": {
-    "comment": "DUAL compartment: fresh_food + freezer, one RTD each. All null pending the fresh equilibrated capture (shakedown probes were still relocating; the CSV columns even read reversed early on).",
+    "comment": "DUAL compartment: fresh_food + freezer, one RTD each. Filled 2026-07-24 from the 74.3 h CONTINUOUS capture run_20260721_135703.csv (2026-07-21 13:59 -> 2026-07-24 16:16, 75 cycles) via analysis/characterize.py, once per compartment. Fresh-food numbers used --temp-min 10 --temp-max 55 to drop a 3 s RTD bump glitch (t2 -> -207 F at 2026-07-24 14:18, from bumping the probe) + door-open spikes; UNFILTERED that one bump falsely dragged fresh-food cut-out to 32 F / band to 8.2 F. Freezer (t1) was unaffected by the bump -> clean.",
     "compartments": {
-      "fresh_food": { "rtd_channel": "RTD ch2 -> CSV column t2_fridge_f (CONFIRMED 2026-07-21: reads fresh-food)", "temp_range_f": [null, null], "confidence": null, "notes": "Column name is correct for this run. Shakedown steady-state: fresh-food ~38 F." },
-      "freezer": { "rtd_channel": "RTD ch1 -> CSV column t1_freezer_f (CONFIRMED 2026-07-21: reads freezer)", "temp_range_f": [null, null], "confidence": null, "notes": "Sub-zero branch (P0 fix applies). Shakedown steady-state: freezer ~3 F; ~4 F/hr unpowered warmup during the 7 h post-trip coast." }
+      "fresh_food": { "rtd_channel": "RTD ch2 -> CSV column t2_fridge_f (CONFIRMED 2026-07-21: reads fresh-food)", "temp_range_f": [35.28, 40.09], "confidence": "medium", "notes": "Operating band cut-out 35.3 / cut-in 40.1 F (band 4.8 F) -- TIGHTER than the freezer. Normal envelope ~33-41 F (door spikes to ~55 F excluded as artifact)." },
+      "freezer": { "rtd_channel": "RTD ch1 -> CSV column t1_freezer_f (CONFIRMED 2026-07-21: reads freezer)", "temp_range_f": [-4.30, 5.82], "confidence": "medium", "notes": "Operating band cut-out -4.3 / cut-in +5.8 F (band 10.1 F). Full envelope -7.1 .. 24.6 F (24.6 = defrost peak). Sub-zero branch (P0 fix applies). Mean cut-out -4.3 sits between the cleanest single cut-out (-3.6 F) and the doc's ~-6 F estimate -- validates the Part-A checklist 'don't wait for -6 F' note." }
     },
-    "thermostat_band_f": { "compartment": "", "cut_out_f": null, "cut_in_f": null, "band_f": null, "confidence": null, "source": "", "notes": "" },
-    "pulldown_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while ON.", "notes": "" },
-    "warmup_rate_f_per_min": { "value": null, "max_value": null, "confidence": null, "source": "slope while OFF.", "notes": "THE OUTAGE-CRITICAL NUMBER. Per compartment." }
+    "thermostat_band_f": {
+      "freezer":    { "cut_out_f": -4.30, "cut_in_f": 5.82, "band_f": 10.12, "confidence": "medium" },
+      "fresh_food": { "cut_out_f": 35.28, "cut_in_f": 40.09, "band_f": 4.81, "confidence": "medium" },
+      "source": "characterize.py on run_20260721_135703.csv (74.3 h, 75 cycles); per-segment cut-out=min / cut-in=max, averaged over runs.",
+      "notes": "Fresh-food required the bump/door filter (--temp-min 10 --temp-max 55); freezer is clean."
+    },
+    "pulldown_rate_f_per_min": {
+      "freezer":    { "value": -0.236, "max_value": -0.556 },
+      "fresh_food": { "value": -0.112, "max_value": -0.641 },
+      "confidence": "medium", "source": "slope while ON, mean over runs >60 s (characterize.py).", "notes": "max_value = steepest (fastest) pull."
+    },
+    "warmup_rate_f_per_min": {
+      "freezer":    { "value": 0.418, "max_value": 0.761 },
+      "fresh_food": { "value": 0.212, "max_value": 0.858 },
+      "confidence": "medium (SHORT-timescale ONLY)",
+      "source": "slope while OFF, mean over natural ~21 min off-periods >60 s (characterize.py).",
+      "notes": "THE OUTAGE-CRITICAL NUMBER, but CAVEAT: these are slopes over the NATURAL off-periods = the FAST INITIAL part of a NON-LINEAR warmup. Freezer 0.418 F/min (~25 F/hr initial) matches the doc's ~0.3 F/min short-term estimate, but the curve TAPERS to ~3-4 F/hr over a multi-hour coast as it couples to the frozen mass. DO NOT extrapolate these to Part-B hours-scale coasts -- those must be measured directly. Per compartment."
+    }
   },
 
   "defrost": {
@@ -87,12 +102,13 @@
   },
 
   "duty_cycle": {
-    "value_pct": 59, "confidence": "medium for NIGHT baseline; daytime pending",
+    "value_pct": 59, "confidence": "medium; value_pct = STEADY-cycling baseline. ALL-IN (incl. defrost+recovery) measured at 68.4% -- see observations.",
     "observations": [
-      { "value_pct": 59, "confidence": "medium", "ambient": "night, undisturbed (few door openings); exact ambient not logged", "basis": "12 clean steady cycles over 11 h overnight; ON mean ~32.5 min, OFF mean ~21 min. Excludes pulldown + a door-slam artifact.", "source": "2026-07-21/22 fresh capture (night)", "supersede": "recompute on the full day+night file after the 10pm 2026-07-22 cutoff" },
+      { "value_pct": 68.4, "confidence": "medium", "ambient": "full 74.3 h continuous file: day+night, doors-open, warmer daytime ambient", "basis": "characterize.py on run_20260721_135703.csv: 50.82 h ON of 74.27 h, 75 cycles. ALL-IN effective duty -- includes 4 defrost + ~2 h-recovery cycles, initial pulldown, and daytime door activity. This is the realistic BUDGETING duty; the pure steady-cycling duty underneath is still ~59%. (mean run 40.7 min here is inflated vs the night's ~32 min by the 2 h recovery marathons.)", "source": "2026-07-21..24 continuous capture" },
+      { "value_pct": 59, "confidence": "medium", "ambient": "night, undisturbed (few door openings); exact ambient not logged", "basis": "12 clean steady cycles over 11 h overnight; ON mean ~32.5 min, OFF mean ~21 min. Excludes pulldown + a door-slam artifact.", "source": "2026-07-21/22 fresh capture (night)", "supersede": "SUPERSEDED for the all-in figure by the 68.4% full-file number above; retained as the STEADY-cycling baseline." },
       { "value_pct": 64, "confidence": "low", "ambient": "warm bench", "basis": "eyeball of 3 cycles before the overnight overcurrent event; shakedown.", "source": "2026-07-19/20 shakedown" }
     ],
-    "notes": "MAKE-OR-BREAK PARAMETER. ~59-60% is the NIGHT/undisturbed baseline (the fridge settles here). DAYTIME capture running till 10pm 2026-07-22 will add the doors-open, warmer-ambient regime -> likely HIGHER; that's the realistic-use number. BUT: free-running duty is NOT the deployment figure -- the system runs hours-on/hours-off and the gating unknown is the REPLACEMENT FREEZER's duty UNDER INTERRUPTION, not more fridge data. See docs/rotation_budget.md 'The real question'."
+    "notes": "MAKE-OR-BREAK PARAMETER. Now BOTH measured: ~59% STEADY cycling (night/undisturbed baseline the fridge settles to) and ~68% ALL-IN over 3 full days (adds defrost+recovery overhead + daytime doors). The all-in 68% is the free-running budgeting figure. BUT: free-running duty is NOT the deployment figure -- the system runs hours-on/hours-off and the gating unknown is the REPLACEMENT FREEZER's duty UNDER INTERRUPTION, not more fridge data. See docs/rotation_budget.md 'The real question'."
   },
 
   "provenance": {

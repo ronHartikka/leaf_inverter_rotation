@@ -23,20 +23,31 @@ The start transient is sub-100ms and falls between 10Hz samples.
 import csv, argparse, statistics
 
 
-def load_rows(path, temp_col):
+def load_rows(path, temp_col, tmin=None, tmax=None):
     rows = []
+    dropped = 0
     with open(path) as f:
         r = csv.DictReader(f)
         if temp_col not in r.fieldnames:
             raise SystemExit(f"temp column {temp_col!r} not in CSV; found: {r.fieldnames}")
         for row in r:
             try:
+                temp = float(row[temp_col])
+                # Drop nonphysical temps (RTD open/short from a bump, or a door-open
+                # warm spike) so a 3-second glitch can't pollute the envelope or a
+                # segment's warmup/pulldown slope. Opt-in via --temp-min/--temp-max;
+                # the `fault` flag misses bad-but-in-range resistances, so filter by value.
+                if (tmin is not None and temp < tmin) or (tmax is not None and temp > tmax):
+                    dropped += 1
+                    continue
                 rows.append((float(row['unix_s']), float(row['current_a']),
-                             float(row[temp_col]), int(row.get('fault', 0) or 0)))
+                             temp, int(row.get('fault', 0) or 0)))
             except (ValueError, KeyError):
                 continue  # tolerate the occasional RTD fault line
     if not rows:
         raise SystemExit("no usable rows parsed")
+    if dropped:
+        print(f"# dropped {dropped} rows outside [{tmin}, {tmax}] F (nonphysical/artifact)")
     return rows
 
 
@@ -79,9 +90,13 @@ def main():
                     help="temperature column to analyze (default t1_freezer_f)")
     ap.add_argument("--on", type=float, default=0.35, help="START_CONFIRM_A (default 0.35)")
     ap.add_argument("--off", type=float, default=0.20, help="STOP_A (default 0.20)")
+    ap.add_argument("--temp-min", type=float, default=None,
+                    help="drop rows below this temp (F) as nonphysical (e.g. a bump/RTD open)")
+    ap.add_argument("--temp-max", type=float, default=None,
+                    help="drop rows above this temp (F) as artifact (e.g. a door-open spike)")
     args = ap.parse_args()
 
-    rows = load_rows(args.csv, args.temp_col)
+    rows = load_rows(args.csv, args.temp_col, args.temp_min, args.temp_max)
     t0, tN = rows[0][0], rows[-1][0]
     dur = tN - t0
 
