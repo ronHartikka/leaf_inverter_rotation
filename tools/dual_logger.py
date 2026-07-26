@@ -144,6 +144,12 @@ state = {
     "res1": None, "res2": None,   # latest RTD resistances (ohm)
     "t1_f": None, "t2_f": None,   # latest temps (F) from resistance
     "fault": 0,             # 1 if a fault line seen since last temp update
+    "temp_updated_at": 0.0, # wall time of the LAST REAL temp update. The merge below
+                            # sample-and-holds, so the CSV/held value can't tell a live
+                            # sensor from a hung one still reporting its last (stale) value.
+                            # Coast control keys its freshness check off THIS, not t1/t2.
+    "arduino_ser": None,    # live Serial handle for the Arduino/current port, so coast
+                            # control can DTR-reset it (set/cleared by _serial_lines).
 }
 lock = threading.Lock()
 stop = threading.Event()
@@ -182,6 +188,9 @@ def _serial_lines(requested, role, baud, rawf, tag):
             print(f"# {role} port {port} open failed: {e}; retry in 3s")
             time.sleep(3)
             continue
+        if role == "current":
+            with lock:
+                state["arduino_ser"] = ser   # expose for coast-control DTR resets
         try:
             buf = b""
             while not stop.is_set():
@@ -198,6 +207,9 @@ def _serial_lines(requested, role, baud, rawf, tag):
             print(f"# {role} reader error: {e}; re-resolving + reopening")
             time.sleep(2)
         finally:
+            if role == "current":
+                with lock:
+                    state["arduino_ser"] = None   # handle is gone -> coast can't hold OFF -> powers on
             try: ser.close()
             except Exception: pass
 
@@ -236,8 +248,110 @@ def reader_temp(requested, baud, rawf):
                 state["t1_f"] = t1
                 state["t2_f"] = t2
                 state["fault"] = pending_fault
+                state["temp_updated_at"] = time.time()   # freshness stamp for coast control
             pending_r1 = None
             pending_fault = 0
+
+
+# ---- coast control (optional) : automated cut / restore between Tmin and Tmax ----
+# Holds the load's power OFF by REPEATEDLY resetting the Arduino -- each reset re-arms its
+# ~180 s relay-open hold-off, so as long as we reset faster than that, the relay never
+# closes. RESTORE = simply STOP resetting; the hold-off completes (<=~3 min) -> relay
+# closes -> power ON.
+#
+# FAIL-SAFE BY CONSTRUCTION: keeping power OFF requires continuous action, so ANY failure
+# (this thread, the logger, ssh, the temp feed) stops the resets and the load powers up
+# within the hold-off. The restore path and the crash path are the SAME thing -- do
+# nothing. Two guards force power back on on purpose: a hard max-off cap, and a temp
+# STALENESS check (a hung sensor holding a stale-cold value is the one case the dead-man
+# logic alone would miss, and the merge's sample-and-hold would otherwise hide it).
+
+def pulse_arduino_reset():
+    """DTR-pulse the Arduino to reset it (re-arms the ~180 s hold-off). The mEDBG keeps
+    USB up across an ATmega reset, so the reader's port stays valid. Returns True if a
+    pulse was issued. VALIDATE ON A DUMMY LOAD FIRST: confirm a pulse actually resets the
+    board and restarts the countdown; if it doesn't, cuts simply won't happen (safe:
+    power stays on) and you fall back to close/reopen of the port."""
+    with lock:
+        ser = state.get("arduino_ser")
+    if ser is None:
+        return False
+    try:
+        ser.dtr = False
+        time.sleep(0.06)
+        ser.dtr = True
+        return True
+    except Exception as e:
+        print(f"# coast: reset failed ({e}); not holding power off -> load powers on")
+        return False
+
+
+def coast_controller(cfg, clog):
+    """POWERED <-> CUT state machine. Cut only when BOTH compartments are below their
+    Tmin (cold, ~cut-out) AND temps are fresh; restore when EITHER exceeds its Tmax, OR
+    temps go stale, OR the max-off cap trips. All events -> clog (+ stdout)."""
+    def ev(msg):
+        print(f"# coast: {msg}")
+        clog.write(f"{datetime.now().isoformat(timespec='seconds')}\t{msg}\n")
+
+    if cfg.get("test_timer"):
+        # SENSOR-INDEPENDENT test of the DTR-reset mechanism: cut/restore on a fixed
+        # clock, temps ignored. Keep test_on_s > the ~180 s hold-off so the load
+        # actually powers on during the POWERED phase (restore is only as fast as the
+        # hold-off). Same pulse/stop-resetting mechanism as the real mode.
+        ev("TEST-TIMER (temps IGNORED): ON %.0fs / CUT %.0fs; reset_every=%.0fs"
+           % (cfg["test_on_s"], cfg["test_cut_s"], cfg["reset_every_s"]))
+        st, phase_start, last_reset = "POWERED", time.time(), 0.0
+        while not stop.wait(cfg["tick_s"]):
+            now = time.time(); elapsed = now - phase_start
+            if st == "POWERED":
+                if elapsed >= cfg["test_on_s"]:
+                    st, phase_start, last_reset = "CUT", now, 0.0
+                    ev("CUT start (timer) -> load should go OFF")
+            else:  # CUT
+                if elapsed >= cfg["test_cut_s"]:
+                    st, phase_start = "POWERED", now
+                    ev("RESTORE (timer) -> stop resetting; load ON within hold-off")
+                elif now - last_reset >= cfg["reset_every_s"]:
+                    if pulse_arduino_reset():
+                        last_reset = now
+        ev("STOP signalled -> resets cease -> load powers on within hold-off")
+        return
+
+    ev("ARMED  Tmax(frz/frsh)=%.1f/%.1f  Tmin=%.1f/%.1f  max_off=%.0fmin  stale=%.0fs  reset_every=%.0fs"
+       % (cfg["tmax_frz"], cfg["tmax_frsh"], cfg["tmin_frz"], cfg["tmin_frsh"],
+          cfg["max_off_s"] / 60, cfg["stale_s"], cfg["reset_every_s"]))
+
+    st, cut_started, last_reset = "POWERED", None, 0.0
+    while not stop.wait(cfg["tick_s"]):
+        with lock:
+            t_frz, t_frsh, tstamp = state["t1_f"], state["t2_f"], state["temp_updated_at"]
+        now = time.time()
+        fresh = (t_frz is not None and t_frsh is not None and now - tstamp <= cfg["stale_s"])
+        off_for = (now - cut_started) if st == "CUT" else None
+
+        if st == "POWERED":
+            # start a coast ONLY when it's cold AND the reading is trustworthy
+            if fresh and t_frz < cfg["tmin_frz"] and t_frsh < cfg["tmin_frsh"]:
+                st, cut_started, last_reset = "CUT", now, 0.0
+                ev("CUT start  frz=%.1f frsh=%.1f" % (t_frz, t_frsh))
+        else:  # CUT -- keep power off, or decide to restore
+            reason = ("stale/no temp" if not fresh
+                      else "hit Tmax" if (t_frz > cfg["tmax_frz"] or t_frsh > cfg["tmax_frsh"])
+                      else "max-off cap" if off_for > cfg["max_off_s"]
+                      else None)
+            if reason:
+                fz = ("%.1f" % t_frz) if t_frz is not None else "??"
+                fh = ("%.1f" % t_frsh) if t_frsh is not None else "??"
+                ev("RESTORE (%s)  frz=%s frsh=%s off=%.1fmin -> stop resetting; power on within hold-off"
+                   % (reason, fz, fh, off_for / 60))
+                st, cut_started = "POWERED", None
+            elif now - last_reset >= cfg["reset_every_s"]:
+                if pulse_arduino_reset():
+                    last_reset = now
+                # if the reset can't be issued, we just don't -> the Arduino completes
+                # its hold-off -> power returns. Fail-safe, no special case needed.
+    ev("STOP signalled -> resets cease -> load powers on within hold-off")
 
 
 # ---- USB serial port auto-detection ----
@@ -323,6 +437,39 @@ def main():
                     help="run the PT1000 conversion self-test and exit (no capture).")
     ap.add_argument("--list-ports", action="store_true",
                     help="list all serial ports (device / vid:pid / serial) and exit.")
+    # ---- coast control (default OFF; pure logging is unchanged) ----
+    ap.add_argument("--coast-control", action="store_true",
+                    help="ENABLE automated cut/restore of the load's power (holds OFF by "
+                         "resetting the Arduino; restore = stop resetting). DRY-RUN ON A "
+                         "DUMMY LOAD FIRST.")
+    ap.add_argument("--tmax-freezer", type=float, default=12.0,
+                    help="coast: restore if FREEZER (t1) exceeds this F (default 12; a "
+                         "conservative margin under the 19 F safety limit).")
+    ap.add_argument("--tmax-fresh", type=float, default=38.0,
+                    help="coast: restore if FRESH-FOOD (t2) exceeds this F (default 38; under 42 F).")
+    ap.add_argument("--tmin-freezer", type=float, default=-2.0,
+                    help="coast: only START a cut when FREEZER is below this F (default -2).")
+    ap.add_argument("--tmin-fresh", type=float, default=35.0,
+                    help="coast: only START a cut when FRESH-FOOD is below this F (default 35).")
+    ap.add_argument("--max-off-min", type=float, default=240.0,
+                    help="coast: HARD cap -- never hold power off longer than this many "
+                         "minutes, regardless of temps (default 240 = 4 h).")
+    ap.add_argument("--stale-s", type=float, default=30.0,
+                    help="coast: if no fresh temp update within this many s, restore power "
+                         "(default 30).")
+    ap.add_argument("--reset-every-s", type=float, default=120.0,
+                    help="coast: reset cadence while OFF; MUST be < the Arduino's ~180 s "
+                         "hold-off (default 120).")
+    ap.add_argument("--coast-tick-s", type=float, default=5.0,
+                    help="coast: control-loop period in s (default 5).")
+    ap.add_argument("--coast-test-timer", action="store_true",
+                    help="coast TEST mode: IGNORE temps, cut/restore on a fixed clock -- "
+                         "to validate the DTR reset without a working sensor.")
+    ap.add_argument("--test-on-s", type=float, default=240.0,
+                    help="coast-test-timer: POWERED duration s (default 240; keep > the "
+                         "~180 s hold-off so the load actually powers on).")
+    ap.add_argument("--test-cut-s", type=float, default=120.0,
+                    help="coast-test-timer: CUT duration s (default 120).")
     args = ap.parse_args()
 
     if args.list_ports:
@@ -374,6 +521,24 @@ def main():
     tt = threading.Thread(target=reader_temp,
                           args=(args.temp_port, args.temp_baud, rawf), daemon=True)
     tc.start(); tt.start()
+
+    if args.coast_control:
+        clog_path = args.out.rsplit(".", 1)[0] + ".coast"
+        clog = open(clog_path, "a", buffering=1)
+        cfg = {
+            "tmax_frz": args.tmax_freezer, "tmax_frsh": args.tmax_fresh,
+            "tmin_frz": args.tmin_freezer, "tmin_frsh": args.tmin_fresh,
+            "max_off_s": args.max_off_min * 60.0, "stale_s": args.stale_s,
+            "reset_every_s": args.reset_every_s, "tick_s": args.coast_tick_s,
+            "test_timer": args.coast_test_timer, "test_on_s": args.test_on_s,
+            "test_cut_s": args.test_cut_s,
+        }
+        print("# " + "=" * 66)
+        print("# COAST-CONTROL ENABLED: this WILL cut and restore the load's power.")
+        print("#   fail-safe = STOP resetting -> Ctrl-C, or ANY failure, powers it on.")
+        print(f"#   events -> {clog_path}")
+        print("# " + "=" * 66)
+        threading.Thread(target=coast_controller, args=(cfg, clog), daemon=True).start()
 
     # Fixed-rate sample-and-hold merge: every 1/rate_hz seconds, snapshot the
     # latest current + latest temps and write one row. Simple, regular grid,
