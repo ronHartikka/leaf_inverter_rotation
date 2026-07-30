@@ -22,6 +22,7 @@ debugging or a night of unpowered food. Implement them; do not relitigate them.
   architecture, rig facts.
 - `docs/rotation_budget.md` — the make-or-break duty-cycle question and its status.
 - `docs/rig_startup.md`, `docs/interruption_test*.md` — at-the-rig procedures.
+- `docs/esp32_wifi_production.md` — ESP32 WiFi connect routine, node identity, heartbeat.
 - `loads/*.json` — per-load characterization. Control constants come from these.
 - `firmware/shared/` — canonical constants, safe-startup and current-sense helpers.
 
