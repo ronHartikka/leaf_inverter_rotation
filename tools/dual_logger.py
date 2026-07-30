@@ -137,10 +137,25 @@ def _self_test():
           f"(tolerance 0.05 C)")
     return ok
 
+# ---- status-column thresholds (see the three derived status bits in the merge loop) ----
+# The Arduino current stream updates at ~1 Hz (bursts to 10 Hz), so the sample-and-hold
+# merge normally repeats a value ~10x. A hold BEYOND this many seconds means the source
+# froze -- a coast cut (Arduino held in reset) OR a plain sensor/comm dropout -- which the
+# merge would otherwise silently repeat forever. 3 s clears the ~2 s p99 normal-jitter hold
+# with margin. (Empirical: powered p99 identical-run ~2 s; a real dropout ran ~2 min.)
+CUR_STALE_S = 3.0
+# Current above this (A) = compressor drawing/running. Measured: true-off ~0.1 A, running
+# 0.7-1.2 A, start inrush 1.8-1.9 A -- 0.5 A cleanly splits off from running. Only meaningful
+# when current is fresh (current_stale == 0); reported 0 while stale (can't confirm running).
+COMP_ON_A = 0.5
+
 # ---- shared state, updated by reader threads ----
 state = {
     "amps": None,           # latest current (A)
     "amps_note": "",        # burst/decay note if present
+    "amps_updated_at": 0.0, # wall time of the LAST REAL current update -> current_stale bit
+    "relay_cmd": 1,         # commanded load power: 1=on (POWERED), 0=cut. Set by coast
+                            # control; stays 1 when coast is off (power is never cut).
     "res1": None, "res2": None,   # latest RTD resistances (ohm)
     "t1_f": None, "t2_f": None,   # latest temps (F) from resistance
     "fault": 0,             # 1 if a fault line seen since last temp update
@@ -222,6 +237,7 @@ def reader_current(requested, baud, rawf):
             with lock:
                 state["amps"] = float(m.group(2))
                 state["amps_note"] = m.group(3) or ""
+                state["amps_updated_at"] = time.time()   # freshness stamp for current_stale
 
 
 def reader_temp(requested, baud, rawf):
@@ -315,6 +331,10 @@ def coast_controller(cfg, clog):
                 elif now - last_reset >= cfg["reset_every_s"]:
                     if pulse_arduino_reset():
                         last_reset = now
+            with lock:
+                state["relay_cmd"] = 1 if st == "POWERED" else 0
+        with lock:
+            state["relay_cmd"] = 1   # stopping -> resets cease -> power returns
         ev("STOP signalled -> resets cease -> load powers on within hold-off")
         return
 
@@ -351,6 +371,10 @@ def coast_controller(cfg, clog):
                     last_reset = now
                 # if the reset can't be issued, we just don't -> the Arduino completes
                 # its hold-off -> power returns. Fail-safe, no special case needed.
+        with lock:
+            state["relay_cmd"] = 1 if st == "POWERED" else 0
+    with lock:
+        state["relay_cmd"] = 1   # stopping -> resets cease -> power returns
     ev("STOP signalled -> resets cease -> load powers on within hold-off")
 
 
@@ -506,7 +530,8 @@ def main():
     except FileExistsError as e:
         sys.exit(f"# refusing to write: {e.filename} already exists.")
     outf.write("unix_s,iso,current_a,current_note,"
-               "t1_freezer_f,t2_fridge_f,res1_ohm,res2_ohm,fault\n")
+               "t1_freezer_f,t2_fridge_f,res1_ohm,res2_ohm,fault,"
+               "relay_cmd,current_stale,compressor_on\n")
 
     print(f"# current: {cur_port} @ {args.current_baud}")
     print(f"# temp:    {tmp_port} @ {args.temp_baud}")
@@ -554,14 +579,22 @@ def main():
                 time.sleep(sleep)
             with lock:
                 amps = state["amps"]; note = state["amps_note"]
+                amps_at = state["amps_updated_at"]
                 t1 = state["t1_f"]; t2 = state["t2_f"]
                 r1 = state["res1"]; r2 = state["res2"]
                 fault = state["fault"]
+                relay_cmd = state["relay_cmd"]
             if amps is None and t1 is None:
                 continue  # nothing to log yet
             now = time.time()
             iso = datetime.now().isoformat(timespec="milliseconds")
-            outf.write("%.3f,%s,%s,%s,%s,%s,%s,%s,%d\n" % (
+            # Three derived status bits. current_stale flags a frozen/held current value
+            # (coast cut OR sensor dropout) that the sample-and-hold would silently repeat;
+            # compressor_on is the current-inferred run state, valid only when NOT stale.
+            current_stale = 1 if (amps is None or now - amps_at > CUR_STALE_S) else 0
+            compressor_on = 1 if (not current_stale and amps is not None
+                                  and amps > COMP_ON_A) else 0
+            outf.write("%.3f,%s,%s,%s,%s,%s,%s,%s,%d,%d,%d,%d\n" % (
                 now, iso,
                 ("%.3f" % amps) if amps is not None else "",
                 note,
@@ -570,6 +603,7 @@ def main():
                 ("%.2f" % r1) if r1 is not None else "",
                 ("%.2f" % r2) if r2 is not None else "",
                 fault,
+                relay_cmd, current_stale, compressor_on,
             ))
     except KeyboardInterrupt:
         print("\n# stopping...")
