@@ -170,7 +170,14 @@ lock = threading.Lock()
 stop = threading.Event()
 
 # regexes
-cur_re   = re.compile(r"^\s*(\d+),([\d.]+),?(\w*)")     # t_ms,amps,note
+# STRICT, END-ANCHORED. The Arduino sends exactly "t_ms,amps,note" where amps is a
+# decimal and note is empty or a bareword ("burst"). Anchoring the whole line ($) and
+# REQUIRING a real decimal (\d+\.\d+) rejects lines corrupted in transit on the USB
+# link -- e.g. a garbled "38906058,0)<junk>" whose leading "0" the old lenient prefix
+# regex (r"^\s*(\d+),([\d.]+),?(\w*)") parsed as a FALSE 0.000 A. A rejected line just
+# isn't parsed -> the merge holds the prior value (a single ~250 ms drop, well under
+# the current_stale threshold). See docs/todo.md "CURRENT-CHANNEL SERIAL CORRUPTION".
+cur_re   = re.compile(r"^\s*(\d+),(\d+\.\d+),(\w*)\s*$")   # t_ms,amps,note (whole line)
 res1_re  = re.compile(r"Resistance1\s*=\s*([\d.]+)")
 res2_re  = re.compile(r"Resistance2\s*=\s*([\d.]+)")
 fault_re = re.compile(r"[Ff]ault")

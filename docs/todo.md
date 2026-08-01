@@ -105,6 +105,18 @@ lockstep, one atomic commit:
 - [ ] Proposed neutral scheme: `t1_f`, `t2_f`, `res1_ohm`, `res2_ohm` in the CSV;
       record probe->compartment mapping in each load JSON's `rtd_channel` field,
       NOT in the header.
+- [ ] **DRAFT already landed — do NOT ship piecemeal.** Commit `1700cb2` appended
+      three status columns to `dual_logger.py`'s header ONLY: `relay_cmd`,
+      `current_stale`, `compressor_on`. (`current_stale` implements the P0 "CAPTURE
+      FILE VALIDITY" staleness guard — the merge no longer needs to silently hold a
+      stale current value; `relay_cmd` = coast-FSM commanded power; `compressor_on` =
+      current-inferred run state, valid only when not stale.) Additive at the end,
+      existing readers unaffected, nothing broken — but it IS the piecemeal header
+      change this section forbids. FOLD INTO THIS ATOMIC SITTING: propagate all three
+      cols + the P1 rename across `dual_logger.py` + `characterize.py` +
+      `live_chart.py` + any Ubuntu-side scripts, then scp to the Ubuntu box —
+      together, at the **setting-5 restart boundary** (next intentional dial change;
+      current config = FFC dial 5, freezer dial 1), when no capture is running.
 
 Do P1 in the same sitting as any P2 column add, since both touch the header.
 
@@ -502,3 +514,25 @@ logger sample-and-holds a stale value with no staleness guard (separate, still-
 valid logger fix noted elsewhere in this doc). Temps remain valid/real throughout
 (separate device, unaffected). Raw current waveform for the event itself is
 preserved in analysis outputs (overcurrent_event.png) generated 2026-07-20.
+
+### CURRENT-CHANNEL SERIAL CORRUPTION -> false 0.000 A [found 2026-08-01]
+Occasional CUR serial lines arrive GARBLED on the USB link. The Arduino's computed
+value is fine -- corruption is IN TRANSIT (t_ms usually survives intact while the
+amps field is trashed; isolated single lines). The old parser
+`^\s*(\d+),([\d.]+),?(\w*)` matched a PREFIX, so a garbled line like
+`38906058,0)<junk>` yielded amps="0" -> a FALSE 0.000 A. Confirmed from the .raw:
+adjacent lines are clean ~0.96 A; the corrupt one carries high/garbage bytes.
+Clusters as current levels off near setpoint -- HYPOTHESIS: inverter-compressor
+low-speed PWM noise coupling into that USB lead (the EMI path already flagged in the
+overcurrent write-up). `current_stale` does NOT catch these -- a corrupted line is
+fresh, just wrong.
+- [x] Parser hardened [2026-08-01, dual_logger.py]: end-anchored, decimal-required
+      `^\s*(\d+),(\d+\.\d+),(\w*)\s*$`. Corrupted lines are dropped (merge holds the
+      prior value, a ~250 ms gap, well under current_stale). Real 0.000 still logs.
+      NO header change. Deploys with the setting-5 restart (same as the P1 batch).
+- [ ] Root-cause the EMI: try a LOWER baud (payload is ~80 B/s -- enormous headroom,
+      so no throughput cost), plus a ferrite + shielded / re-routed current USB lead
+      away from the compressor cord. (Requires the Arduino sketch + --current-baud.)
+- [ ] Robust long-term: add a checksum to the Arduino CUR line so ANY corruption is
+      rejectable -- the regex only catches the leading-"0"/garbage class, not a
+      corrupted-but-structurally-valid value.
