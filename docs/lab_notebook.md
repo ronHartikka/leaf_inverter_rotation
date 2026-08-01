@@ -10,7 +10,7 @@ marked `~` or `UNKNOWN`; fill them in if you reconstruct them.
 
 ## Entries
 
-- **2026-07-2? ??:??** FFC dial 3 → 5. EXACT DATE UNKNOWN — in effect by 2026-07-26 20:07 (reconstruct if possible).
+- **2026-07-21 ~13:57** FFC dial 3 → 5 (RECONSTRUCTED, high confidence). Coincides with the start of run_20260721_135703. Evidence: FFC free-cycle band shifted ~5 °F colder across the file boundary — Jul 19–20 run cut out ~39 °F (band 39–42), Jul 22 & 24 cut out ~34 °F (band 34–39); both non-coast, so it's the fridge's own thermostat, and cut-out temp is ambient-independent. Bracketed to the data gap [Jul 20 07:32 – Jul 21 13:59]; exact minute within the gap unknown.
 - **2026-07-26 20:07** Coast-control run begins; params held constant Jul 26–31: Tmin 0/36 °F, Tmax 15/40 °F, max-off 180 min.
 - **2026-07-29 07:58** FC (freezer/damper) dial 3 → 1, at FFC = 5. (start of run_auto_0729_0758)
 - **2026-07-30 ~00:00** Defrost observed (fridge freezer air spiked ~+27 °F).
