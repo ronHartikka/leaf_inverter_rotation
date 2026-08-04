@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
-"""scrub_chart.py — static, scrubbable viewer for a logger CSV (read from stdin).
+"""scrub_chart.py — static, scrubbable viewer for a logger CSV.
 
 Companion to live_chart.py: instead of following a live capture, this loads one
 already-recorded run and lets you pan/zoom the time axis to look around. Same
-colors/axes as live_chart.py. Launched by tools/scrub_run.sh, which picks a file
-on the Ubuntu box and streams it in (optionally decimated with awk for speed).
+colors/axes as live_chart.py.
+
+  Usage:  python3 tools/scrub_chart.py <run.csv>          # read a local file
+          cat run.csv | python3 tools/scrub_chart.py      # or read stdin
+          ./tools/scrub_run.sh                            # or fetch from Ubuntu
+
+Reads a CSV path if given, else stdin. tools/scrub_run.sh is the wrapper that
+picks a file on the Ubuntu box and streams it in (decimated with awk for speed).
+A small sample to try it on is committed at data/sample_run_auto.csv.
 
 Controls (matplotlib widgets, standard look):
   Start slider  — scrollbar; drag to pan the window across the whole file.
@@ -30,13 +37,14 @@ TEMP_MIN_F, TEMP_MAX_F = -20, 70
 CUR_MIN_MA, CUR_MAX_MA = 0, 2000
 
 
-def load_stdin():
-    """Parse the streamed CSV by column NAME. Returns dict of numpy arrays."""
+def load_input(fh):
+    """Parse CSV lines from `fh` (an open file or sys.stdin) by column NAME.
+    Returns dict of numpy arrays."""
     header = None
     idx = {}
     t, cur, t1, t2 = [], [], [], []
     relay, stale, comp = [], [], []
-    for line in sys.stdin:
+    for line in fh:
         parts = line.rstrip("\n").split(",")
         if header is None:
             header = parts
@@ -95,14 +103,28 @@ def true_spans(t, mask):
 
 
 def main():
-    title = "run"
+    import os
     args = sys.argv[1:]
+    title = None
     if "--title" in args:
-        title = args[args.index("--title") + 1]
+        i = args.index("--title")
+        title = args[i + 1]
+        del args[i:i + 2]
+    # remaining non-flag arg = optional input CSV path; if absent, read stdin
+    # (so `scrub_chart.py run.csv` and `cat run.csv | scrub_chart.py` both work).
+    path = next((a for a in args if not a.startswith("-")), None)
+    if path:
+        fh = open(path)
+        if title is None:
+            title = os.path.basename(path)
+    else:
+        fh = sys.stdin
+    if title is None:
+        title = "run"
 
     sys.stderr.write("scrub_chart: loading...\n")
     sys.stderr.flush()
-    d = load_stdin()
+    d = load_input(fh)
     if d["t"].size == 0:
         sys.stderr.write("scrub_chart: no data rows parsed\n")
         sys.exit(1)

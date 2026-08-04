@@ -2,3 +2,5 @@
 *.csv
 *.raw
 !.gitignore
+# ...except one small committed sample so the viewer tools have something to demo.
+!sample_run_auto.csv
