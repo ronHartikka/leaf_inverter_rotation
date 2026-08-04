@@ -175,8 +175,8 @@ probe placement, hot-restart pause, exact commands, equilibration wait.)
       item above. KEEP IT MINIMAL -- the characterizer is a throwaway measuring tool;
       real per-load behavior (compressor vs furnace sequencing, defrost, min-off)
       belongs in the PRODUCTION firmware driven by loads/*.json, not here.
-- [ ] `requirements.txt` (or freeze) so the venv is reproducible
-      (matplotlib 3.11.1 etc. — currently only in the live venv, not recorded).
+- [x] `requirements.txt` (or freeze) so the venv is reproducible
+      (matplotlib 3.11.1 etc.). DONE 2026-08-04 — frozen from the venv (commit f25a6c8).
 - [ ] Push repo edits of `dual_logger.py` back to the Ubuntu box after changes
       (repo is now the reference copy; Ubuntu runs its own — keep them in sync;
       the running process won't pick up edits until restarted).
