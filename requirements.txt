@@ -1,0 +1,17 @@
+# Python deps for the chart/analysis tools (live_chart.py, scrub_chart.py) — the
+# matplotlib venv on the viewing machine. Recreate with:
+#   python3 -m venv venv && ./venv/bin/pip install -r requirements.txt
+# NOTE: dual_logger.py runs on the logging box and additionally needs `pyserial`.
+# The pure-python tools (clean_window_duty.py, free_cycle_scan.py,
+# fridge_compressor_stops.py) need no third-party packages.
+contourpy==1.3.3
+cycler==0.12.1
+fonttools==4.63.0
+kiwisolver==1.5.0
+matplotlib==3.11.1
+numpy==2.5.1
+packaging==26.2
+pillow==12.3.0
+pyparsing==3.3.2
+python-dateutil==2.9.0.post0
+six==1.17.0
