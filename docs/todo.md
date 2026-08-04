@@ -530,9 +530,29 @@ fresh, just wrong.
       `^\s*(\d+),(\d+\.\d+),(\w*)\s*$`. Corrupted lines are dropped (merge holds the
       prior value, a ~250 ms gap, well under current_stale). Real 0.000 still logs.
       NO header change. Deploys with the setting-5 restart (same as the P1 batch).
-- [ ] Root-cause the EMI: try a LOWER baud (payload is ~80 B/s -- enormous headroom,
-      so no throughput cost), plus a ferrite + shielded / re-routed current USB lead
-      away from the compressor cord. (Requires the Arduino sketch + --current-baud.)
+- [ ] Reduce the corruption at the source. Test ONE change at a time (change nothing
+      else; measure the corrupt-CUR-line RATE from the .raw before vs after -- the raw
+      is preserved even though the parser now drops the bad lines):
+      a. LOWER baud (e.g. 115200 -> 19200 or 9600). Payload is ~80 B/s, so enormous
+         headroom / no throughput cost; slower bits = more noise margin. Requires the
+         Arduino sketch + --current-baud changed together.
+      b. Physical: ferrite on the current USB lead + shield / re-route it away from the
+         compressor cord.
+      Isolating a vs b tells us whether it's a timing-margin problem or a coupling
+      problem.
 - [ ] Robust long-term: add a checksum to the Arduino CUR line so ANY corruption is
       rejectable -- the regex only catches the leading-"0"/garbage class, not a
       corrupted-but-structurally-valid value.
+
+---
+
+## Reminder — rename tools/free_cycle_scan.py (coined+wrong name)
+
+- [ ] Rename `tools/free_cycle_scan.py` (and its output labels "cut-out"/"cut-in").
+      "free-cycle" is a coined term Ron banned; use concrete hardware-state words
+      (relay open/closed, compressor running, defroster running). Also RELABEL what
+      it reports: it finds "compressor-off while relay closed" stretches but does NOT
+      separate the fridge's fixed ~7-min post-power-on startup delay from a genuine
+      compressor stop, so it over-counts. For the fridge's OWN compressor-stop
+      behavior use `tools/fridge_compressor_stops.py` instead. Decide a name with Ron
+      before renaming (his consent required for terms).
