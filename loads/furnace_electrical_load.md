@@ -8,8 +8,6 @@ Companion narrative to `furnace.json`. Everything electrical in here is **estima
 
 Carrier Infinity ICS **58MVC080-F**, 21-inch upflow cabinet, 95% AFUE condensing, three-stage gas valve, variable-speed ECM blower, variable-speed ECM inducer, Infinity communicating control on the ABCD bus.
 
-The nameplate reading that initially came off the equipment — `CX35-30/36C-6F-20` — is the **Lennox evaporator coil** sitting in the plenum above the furnace, not the furnace. It is a 2.5/3-ton cased coil and is only a cooling-side component. It draws nothing on this circuit. Noted here so the mismatch doesn't resurface as a discrepancy later.
-
 Three firing rates, not continuous modulation:
 
 | Stage | Gas input | Gas output | Blower CFM |

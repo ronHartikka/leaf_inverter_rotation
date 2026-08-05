@@ -13,7 +13,6 @@
     "orientation": "upflow",
     "afue_percent": 95.0,
     "control_system": "Carrier Infinity, ABCD bus (RS-485, 38400 8N1)",
-    "associated_ac_coil": "Lennox CX35-30/36C-6F (2.5/3 ton, 21 in cased) - cooling side only, not an electrical load on this circuit",
     "confidence": "high",
     "source": "user-read nameplate + Carrier product data 58MVC-5PD"
   },
