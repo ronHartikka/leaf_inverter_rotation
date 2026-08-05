@@ -1,0 +1,5 @@
+# Manufacturer manuals / datasheets are copyrighted and large — keep them LOCAL.
+# List them (with a link) in README.md instead of committing the files.
+*.pdf
+!.gitignore
+!README.md
