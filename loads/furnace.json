@@ -1,3 +1,314 @@
 {
-  "_placeholder": "Later load. Fill from a dual_logger capture using schema.json as the template."
+  "schema_note": "Matches the section layout used by dorm_fridge.json, chest_freezer.json, kitchen_fridge.json. IMPORTANT: unlike those three, NO value in the electrical section has been measured yet. Every electrical number here is nameplate or derived. Treat as a pre-measurement hypothesis file.",
+
+  "identity": {
+    "load_name": "furnace",
+    "description": "Carrier Infinity ICS gas furnace, condensing, variable-speed ECM blower, three-stage gas valve",
+    "manufacturer": "Carrier",
+    "model": "58MVC080-F",
+    "series": "100",
+    "unit_size_code": "080-14",
+    "nameplate_text_as_read": "INFINITY ICS MODEL 58MVC DELUXE 4-WAY MULTIPOISE VARIABLE-SPEED MULTI-STAGE CONDENSING GAS FURNACE Series 100, Input Rates: 60,000 thru 120,000 Btuh / 58MVC080-F-10114",
+    "casing_width_in": 21,
+    "orientation": "upflow",
+    "afue_percent": 95.0,
+    "control_system": "Carrier Infinity, ABCD bus (RS-485, 38400 8N1)",
+    "associated_ac_coil": "Lennox CX35-30/36C-6F (2.5/3 ton, 21 in cased) - cooling side only, not an electrical load on this circuit",
+    "confidence": "high",
+    "source": "user-read nameplate + Carrier product data 58MVC-5PD"
+  },
+
+  "channel_binding": {
+    "relay_channel": null,
+    "current_sensor_channel": null,
+    "outlet": null,
+    "binding_note": "NOT YET BOUND. The furnace differs from the other three loads: it is hardwired to a dedicated 15 A branch circuit, not cord-and-plug. Powering it from the inverter requires either a cord-and-plug conversion at the furnace junction box or a panel interlock. Do not backfeed a receptacle.",
+    "confidence": "n/a",
+    "source": "pending"
+  },
+
+  "electrical": {
+    "supply": {
+      "volts": 115,
+      "hertz": 60,
+      "phase": 1,
+      "confidence": "high",
+      "source": "product data 58MVC-5PD electrical table"
+    },
+
+    "nameplate_limits": {
+      "maximum_unit_amps": 8.96,
+      "blower_motor_hp": 0.5,
+      "blower_motor_type": "ECM, variable speed 250-1300 rpm",
+      "blower_motor_full_load_amps": 7.7,
+      "max_fuse_or_breaker_amps": 15,
+      "min_wire_size_awg": 14,
+      "transformer_va": 40,
+      "eac_terminal_max_amps": 1.0,
+      "humidifier_terminal_max_amps_24v": 0.5,
+      "confidence": "high",
+      "source": "product data 58MVC-5PD electrical table, unit size 080-14",
+      "interpretation_note": "maximum_unit_amps and blower FLA are ceilings for the module at max airflow and max static. They are NOT expected running values. Do not size the inverter budget from them."
+    },
+
+    "estimated_running_draw_by_stage": {
+      "derivation_note": "ECM shaft power scales approximately as CFM^3 against a fixed duct system curve. Anchored at an assumed ~500 W for the 1400 CFM max-cooling airflow, then scaled to the certified heating airflows. Inducer (also variable-speed ECM) and control board estimated separately and added. ALL VALUES UNVERIFIED.",
+      "stages": [
+        {
+          "stage": "low",
+          "gas_input_btuh": 32000,
+          "gas_output_btuh": 30000,
+          "blower_cfm": 540,
+          "est_blower_w": 29,
+          "est_inducer_w": 40,
+          "est_control_w": 10,
+          "est_total_w": 79,
+          "est_amps_rms": 0.8,
+          "confidence": "low",
+          "source": "derived from certified airflow, cube law"
+        },
+        {
+          "stage": "medium",
+          "gas_input_btuh": 52000,
+          "gas_output_btuh": 49000,
+          "blower_cfm": 695,
+          "est_blower_w": 61,
+          "est_inducer_w": 55,
+          "est_control_w": 10,
+          "est_total_w": 126,
+          "est_amps_rms": 1.2,
+          "confidence": "low",
+          "source": "derived from certified airflow, cube law"
+        },
+        {
+          "stage": "high",
+          "gas_input_btuh": 80000,
+          "gas_output_btuh": 74000,
+          "blower_cfm": 1220,
+          "est_blower_w": 331,
+          "est_inducer_w": 85,
+          "est_control_w": 10,
+          "est_total_w": 426,
+          "est_amps_rms": 4.0,
+          "confidence": "low",
+          "source": "derived from certified airflow, cube law"
+        }
+      ],
+      "standby_w": 12,
+      "standby_note": "ECM module quiescent draw plus control board. Continuous, 24/7. At 12 W this is ~0.29 kWh/day of inverter load even with zero heat calls. Non-trivial against the LEAF energy budget - verify by measurement.",
+      "standby_confidence": "low"
+    },
+
+    "transients": {
+      "compressor_lra_equivalent": null,
+      "lra_note": "THIS LOAD HAS NO LOCKED-ROTOR INRUSH. Both the blower and the inducer are ECM (electronically commutated) and ramp under microprocessor control over several seconds. This is a categorical difference from the chest freezer's PTC-start induction compressor. In this respect the furnace behaves like the kitchen fridge's BLDC inverter compressor, not like the chest freezer.",
+      "events": [
+        {
+          "event": "igniter_warmup",
+          "est_peak_amps": 2.4,
+          "est_peak_w": 260,
+          "duration_s": 17,
+          "repeat": "once per heat call, all stages",
+          "detail": "Carrier silicon-nitride hot surface igniter runs at line voltage with no external regulator. Cold element resistance is low, so expect a higher inrush spike in roughly the first second before it settles. Blower is OFF during this window (blower-ON delay); inducer is running at pre-purge speed.",
+          "confidence": "low",
+          "source": "estimated from typical SiN igniter power and the 58MVC ignition sequence"
+        },
+        {
+          "event": "ecm_dc_bus_charge",
+          "est_peak_amps": "tens of A",
+          "duration_ms": 1,
+          "repeat": "ONLY at 115 V power-up (breaker or disconnect), NOT per heat cycle",
+          "detail": "The ECM module stays energized between cycles; speed is commanded via 24 V PWM inputs, not by switching line power. So this inrush does not recur per cycle. It DOES occur every time a load-shedding relay restores power to the furnace - an argument for not relay-switching this load.",
+          "confidence": "medium",
+          "source": "general ECM drive behavior"
+        }
+      ]
+    },
+
+    "power_factor": {
+      "value": null,
+      "note": "UNKNOWN AND IMPORTANT. The inverter is VA-limited, not W-limited. ECM drives without active PFC can run PF 0.5-0.6, which would nearly double the apparent power versus the watt figures above. The igniter is resistive (PF ~1.0). Measure W and VA separately for every stage.",
+      "confidence": "none",
+      "source": "pending measurement"
+    }
+  },
+
+  "control_constants": {
+    "overcurrent_trip_a": 4.0,
+    "overcurrent_trip_rationale": "Set for low-heat-locked operation (est. 0.8 A steady, 2.4 A igniter transient). Provides margin over the igniter without masking a fault. If SW1-2 low-heat lock is NOT engaged, raise to 6.0 A to clear the estimated 4.0 A high-fire draw. Re-derive after measurement.",
+    "overcurrent_hold_time_s": 25,
+    "overcurrent_hold_rationale": "Must exceed the 17 s igniter warm-up or the latch will fire on every normal ignition. Compare: the kitchen fridge latch fired on a legitimate 1.9 A defrost step held >20 s.",
+    "min_run_time_s": null,
+    "min_run_rationale": "Do not interrupt a heat call. Unlike the compressors there is no hot-restart damage hazard (the gas valve simply closes), but a power interruption aborts and restarts the entire ignition sequence, wasting a full igniter warm-up cycle, and repeated attempts will drive the control to a 3-try lockout.",
+    "post_power_reset_behavior": "First cycle after any power reset is forced to 16 minutes of low heat before the control will consider stepping up, unless the thermostat is satisfied first. Convenient in a backup-power scenario, but do not rely on it by deliberately power-cycling.",
+    "blower_off_delay_s": [90, 120, 150, 180],
+    "blower_off_delay_note": "Selectable at the control board. The blower continues after burner shutoff to extract residual heat - this tail is part of the electrical load and must not be cut short by load shedding.",
+    "stage_lock_switch": "SW1-2 = low heat only (also disables adaptive heat mode). SW4-2 = medium heat only.",
+    "recommended_backup_mode": "SW1-2 low-heat-only. See thermal section: low fire alone covers the measured design load, so this costs nothing in capacity while cutting estimated draw from ~426 W to ~79 W.",
+    "load_shed_policy": "DO NOT SHED THE FURNACE. Shed the fridge and freezer instead and let the furnace run to completion. Rationale: (a) restoring furnace power re-triggers the ECM DC bus inrush, (b) an aborted cycle wastes a 17 s igniter warm-up, (c) repeated aborts risk lockout.",
+    "confidence": "medium",
+    "source": "Carrier product data + troubleshooting literature; trip thresholds are proposals pending measurement"
+  },
+
+  "thermal": {
+    "house_ua_out_btuh_per_f": {
+      "value": 310,
+      "range": [310, 380],
+      "note": "Output-side envelope conductance, from regression of 2022-23 daily gas against local monthly climate normals. Upper end of range reflects the known warm-winter bias in that season.",
+      "confidence": "medium",
+      "source": "regression on utility daily gas export 08/03/2022-09/05/2023"
+    },
+    "balance_point_f": {
+      "value": 63,
+      "range": [63, 66],
+      "note": "Monthly-resolution fit cannot resolve this well above 63 F. Needs daily local airport-station temperatures to sharpen.",
+      "confidence": "low",
+      "source": "same regression"
+    },
+    "design_load_btuh_out_at_4f": {
+      "value": 22000,
+      "range": [20000, 24000],
+      "confidence": "medium",
+      "source": "UA x (68 - 4)"
+    },
+    "stage_adequacy": {
+      "low_fire_covers_design_load": true,
+      "outdoor_temp_for_continuous_low_fire_f": -20,
+      "outdoor_temp_range_for_continuous_low_fire_f": [-30, -13],
+      "note": "Low fire output (30,000 Btuh) exceeds design load (20,000-24,000 Btuh). Medium and high fire are almost certainly never required for steady-state heating in this house; they appear only during recovery from the 63 F night setback. Equipment is roughly 3x oversized at high fire.",
+      "confidence": "medium",
+      "source": "derived from UA and stage outputs"
+    },
+    "thermostat_setpoints_f": {
+      "day": 68,
+      "night": 63,
+      "confidence": "high",
+      "source": "user stated"
+    }
+  },
+
+  "duty_cycle": {
+    "basis": "2022-23 heating season, utility daily gas export, baseload-subtracted, assuming low fire throughout (justified by stage_adequacy above)",
+    "season_span": "2022-10-01 to 2023-05-31",
+    "season_hours": 5832,
+    "season_heating_gas_ccf": 470,
+    "season_full_fire_equivalent_hours": 605,
+    "season_clock_hours_at_low_fire": 1513,
+    "season_runtime_fraction": 0.26,
+    "monthly_runtime_fraction_low_fire": {
+      "2022-10": 0.108,
+      "2022-11": 0.254,
+      "2022-12": 0.411,
+      "2023-01": 0.394,
+      "2023-02": 0.360,
+      "2023-03": 0.298,
+      "2023-04": 0.170,
+      "2023-05": 0.085
+    },
+    "peak_observed": {
+      "dates": "2022-12-24 to 2022-12-27",
+      "gas_ccf_per_day": 5.165,
+      "avg_gas_input_btuh": 19935,
+      "low_fire_duty_fraction": 0.62,
+      "note": "Elliott cold snap - the hardest this furnace has worked in years. Value is a 4-day interpolated interval average; the true single-day peak inside it was somewhat higher."
+    },
+    "gas_baseload_ccf_per_day": {
+      "summer": 0.37,
+      "winter_estimated": 0.50,
+      "annual_avg_from_regression_intercept": 0.43,
+      "note": "Non-furnace gas (water heater, range). Winter figure is higher because incoming mains temperature drops. Confirmed consistent across summer 2023 (0.373) and summer 2026 (0.349) exports."
+    },
+    "confidence": "medium",
+    "source": "utility daily gas exports; electrical duty inferred, not measured"
+  },
+
+  "estimated_electrical_energy": {
+    "december_kwh_per_day": 1.0,
+    "december_breakdown": "9.8 h at ~79 W running + 14.2 h at ~12 W standby",
+    "peak_day_kwh_per_day": 1.3,
+    "shoulder_month_kwh_per_day": 0.4,
+    "note": "Low-heat-locked. Compare against fridge (~1.3 kWh/day) and chest freezer (~1.2 kWh/day): the furnace is the SMALLEST of the three electrical loads, despite being the largest thermal load in the house.",
+    "confidence": "low",
+    "source": "estimated stage draw x measured gas-derived duty cycle"
+  },
+
+  "inverter_compatibility": {
+    "waveform_requirement": "PURE SINE WAVE REQUIRED. ECM blower, ECM inducer, and a microprocessor control board. Modified sine will at best run the ECM hot and noisy.",
+    "neutral_ground_bond_required": true,
+    "neutral_ground_note": "CRITICAL AND OFTEN MISSED. The furnace proves flame by rectifying a microamp AC current through the flame to chassis ground. This requires correct line/neutral polarity AND a neutral-to-ground bond. Many portable inverters have a floating output. Failure signature: burner lights, runs 5-7 s, drops out, retries, locks out after 3-4 attempts. Looks like a gas or flame-sensor fault; is actually an electrical bonding fault. Verify the inverter's bond before diagnosing anything else.",
+    "polarity_sensitive": true,
+    "ancillary_loads_to_not_forget": [
+      "condensate pump if fitted - furnace locks out on the condensate switch if it is unpowered",
+      "humidifier (24 V, 0.5 A max) if fitted",
+      "electronic air cleaner (115 V, 1.0 A max) if fitted"
+    ],
+    "hardwired": true,
+    "confidence": "high",
+    "source": "product data + standard flame-rectification behavior"
+  },
+
+  "cross_load_notes": {
+    "surge_ranking": "Of the three loads, ONLY the chest freezer has a true locked-rotor inrush (PTC-start induction compressor). The kitchen fridge (BLDC inverter compressor, measured 1.5 A peak) and the furnace (ECM blower and inducer) both soft-start. The 1 kW inverter's surge exposure is therefore dominated by a single load.",
+    "steady_state_worst_case_a": 4.2,
+    "steady_state_worst_case_detail": "furnace low fire 0.8 A + fridge defrost 1.9 A + freezer running ~1.5 A = ~4.2 A, roughly 480 W. Comfortably under 1 kW. The three loads do NOT need to time-share on average power.",
+    "revised_hypothesis": "The original 'each load gets the inverter 1/3 of the time' framing appears unnecessary. The binding constraint is surge coincidence involving the chest freezer, not aggregate steady draw. A start-interlock that prevents the freezer compressor from starting within a few seconds of any other event may be sufficient to run all three concurrently.",
+    "kitchen_fridge_defrost_confirmation": "The 1.9 A defrost figure confirms the leading hypothesis for the overnight overcurrent latch event (step to ~2.38 A settling to ~1.9 A, held >20 s against a 1.5 A / 20 s trip). That was defrost heater engagement, not a fault.",
+    "confidence": "medium",
+    "source": "user-measured fridge values + estimated furnace values"
+  },
+
+  "measurement_plan": {
+    "status": "NOT STARTED",
+    "can_be_done_before_heating_season": true,
+    "method_note": "Force heat calls from the thermostat in warm weather. Keep runs short. Use the control board setup switches to isolate stages rather than waiting for the adaptive algorithm to select one.",
+    "sensing_note": "Measure at the furnace 115 V feed at the junction box, upstream of everything, so blower + inducer + igniter + control board land in one signal. The blower access panel has an interlock switch that kills 115 V when opened - plan the tap accordingly. Do NOT use a 100 A CT: at 0.8 A that is 0.8 percent of full scale. Use a 5-10 A split-core, or pass the hot conductor through a larger CT 5 times for 5x sensitivity.",
+    "runs": [
+      {
+        "run": "low_heat_locked",
+        "setup": "SW1-2 ON (low heat only)",
+        "capture": ["steady W", "steady VA and PF", "igniter transient profile at >=1 kHz", "full sequence timing", "standby W between cycles"]
+      },
+      {
+        "run": "medium_heat_locked",
+        "setup": "SW4-2 ON (medium heat only)",
+        "capture": ["steady W", "steady VA and PF"]
+      },
+      {
+        "run": "high_heat",
+        "setup": "both stage-lock switches OFF, force a long call so the control steps up",
+        "capture": ["steady W", "steady VA and PF", "stage transition ramp shape and duration"]
+      },
+      {
+        "run": "end_to_end_inverter_test",
+        "setup": "furnace + fridge + freezer all on the 1 kW inverter from the LEAF, car in Ready",
+        "capture": ["whether the furnace proves flame at all (N-G bond check)", "inverter behavior on freezer compressor start", "worst observed combined VA"]
+      }
+    ],
+    "post_measurement_actions": [
+      "replace every 'estimated' value in the electrical section with measured values and raise confidence",
+      "re-derive overcurrent_trip_a from measured igniter peak",
+      "set min_run_time_s from observed full cycle length including blower off-delay",
+      "decide whether the freezer needs a start interlock or soft starter"
+    ],
+    "reminder": "Return the stage-lock switches to their original positions after testing, and label the setting inside the furnace door."
+  },
+
+  "provenance": {
+    "created": "2026-08-04",
+    "furnace_electrical_values": "NONE MEASURED. Nameplate values from Carrier product data catalog 58MVC-5PD (Edition 09/10). Per-stage running estimates derived from certified airflow tables via ECM cube-law scaling - low confidence, superseded on first measurement.",
+    "duty_cycle_values": "Derived from utility daily gas usage exports, 08/03/2022-09/05/2023 (399 days, 141 actual reads, 236 independent read intervals) and 06/29/2026-08/03/2026 (36 days). Method: baseload subtraction then division by stage input rate.",
+    "thermal_values": "Regression of monthly gas against 1991-2020 local climate normals. Daily local airport-station observations were not available; substituting them is the highest-value open item for tightening UA and balance point.",
+    "reference_documents": [
+      "Carrier product data 58MVC-5PD",
+      "Carrier 58MVC troubleshooting guide, form 58MVC-01T",
+      "utility gas usage exports (CCF, with per-day estimated-read flag)"
+    ],
+    "open_items": [
+      "all furnace electrical measurements",
+      "power factor / VA for every stage",
+      "daily local airport-station temperatures for 2022-23 to replace normals in the UA regression",
+      "inverter neutral-ground bond verification",
+      "chest freezer LRA magnitude and duration (the one real surge in the system)"
+    ]
+  }
 }
