@@ -19,6 +19,5 @@ LG service manual. Sections we rely on:
 - The 7-minute post-power-on compressor start delay in the manual confirms the
   delay we reverse-engineered from the current traces.
 
-Source: search **"LG LTCS20020S service manual"** (LG support / service-manual
-archives). Local copy: `docs/reference/LTCS20020S.pdf` (git-ignored). _Add the exact
-URL here once confirmed._
+Source: <https://research.encompass.com/ZEN/sm/LTCS20020S.pdf> (Encompass). Local
+copy: `docs/reference/LTCS20020S.pdf` (git-ignored).
