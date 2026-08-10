@@ -88,6 +88,22 @@
     "duration_min": 29,
     "duration_note": "~28-30 min (ended 2:54 PM 2026-07-21); exact value from the CSV (current step-up -> drop). This = the MIN UNINTERRUPTED WINDOW rotation must grant once a defrost is detected.",
     "signature_note": "flat ~1.8 A with PERIODIC BRIEF DIPS to ~1 A (observed ~15 & ~25 min in, ~10 min apart) = the board momentarily cutting the heater to sample the true coil temp (defrost sensor sits next to the heater). Detect-and-protect logic MUST debounce these dips, not read them as 'defrost over'.",
+ "entry_transient": {
+  "_comment": "Current PROFILE at defrost ENTRY (the compressor->heater handoff). Measured from two independent defrosts; reproducible = a deterministic control sequence. Matches the service manual: 'Electrical parts such as COMP, defrost heater, freezer FAN, etc. operate in the following order to prevent noise and parts damage.'",
+  "peak_a": 2.6,
+  "peak_range_a": [2.38, 2.56],
+  "peak_duration_s": 2,
+  "shape": "STAIRCASE, not a smooth curve: compressor running -> STEP UP to a ~2.4-2.6 A plateau (~2 s) -> STEP DOWN one plateau (~3-4 s) -> settles to heater-alone ~1.9 A. Plateaus are DEAD FLAT (no thermal decay within them) -> rules out a cold-element inrush; the steps are sequenced load switching per the manual's order.",
+  "mechanism": "brief COMPRESSOR+HEATER OVERLAP during the transition -- the inverter compressor is de-energizing/decelerating while the resistive heater is already on. NOT steady co-running: the manual's avoid-simultaneous rule is a START-UP behavior; a mid-run defrost entry permits the few-second handoff overlap (Ron, 2026-08-10).",
+  "why_peak_below_scalar_sum": "the peak (2.38-2.56 A) is BELOW 0.73/0.99 A comp + 1.9 A heater because RMS currents of the LAGGING compressor (motor, PF ~0.55) and the IN-PHASE heater (resistive) add as VECTORS, not arithmetically: |I| = sqrt(I_h^2 + I_c^2 + 2*I_h*I_c*cos(theta)). With heater 1.9 A, cos(theta) ~= 0.55 (theta ~57 deg) fits BOTH events. The peak scales with how hard the compressor is running at entry, at a ~constant 0.55 motor PF. CAVEAT: logger is RMS-amps only (no phase/PF); the 0.55 is INFERRED, to be confirmed by the scope's VA/PF measurement.",
+  "planning_note": "Defrost ENTRY can hit ~2.6 A for ~2 s -- HIGHER than the flat ~1.9 A defrost steady. Small, but it is the real transient number for this load's worst brief draw.",
+  "measured_events": [
+   {"file": "data/kitchen_fridge_run.csv", "time": "2026-07-20T00:37:57", "pre_comp_a": 0.73, "peak_a": 2.38, "note": "the event that tripped the OLD 1.5 A / 20 s latch (a false trip; threshold since rescaled to 3.5 A)."},
+   {"file": "data/run_auto_0802_1649.csv", "time": "2026-08-08T09:45", "pre_comp_a": 0.99, "peak_a": 2.56}
+  ],
+  "confidence": "high on shape + reproducibility; medium on the inferred ~0.55 PF",
+  "source": "raw 10 Hz current across two defrost entries; service manual sequencing note (Ron 2026-08-10)"
+ },
     "post_defrost_peak_f": { "freezer": 24, "fresh_food": 41, "note": "warmest point of the cycle; food-safe (freezer well under the 40 F ice-crystal line)." },
     "post_defrost_dwell_min": 7,
     "dwell_note": "~7 min from defrost end to compressor restart (drip/drain + anti-short-cycle). Normal. (Seen on the 1st defrost; the clean 2nd defrost went compressor-on almost immediately.)",

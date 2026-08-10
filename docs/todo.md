@@ -473,11 +473,14 @@ the magnitude question; timing was already a tight fit. Detail below.
   RETIRED: the fridge's INTERIOR STICKER reads "Defrosting input: 198 W" =
   ~1.7A @ 115V, which matches the observed flat ~1.9A directly. So the defrost
   HEATER explains the current after all -- the manual's 52W/254.7 ohm figure was
-  the wrong part or wrong value; the nameplate wins. The ~2.4A entry step is the
-  compressor (~0.75A) briefly overlapping the energizing heater at defrost entry,
-  settling to heater-alone (~1.9A) once the compressor drops out. The flatness is
-  just a resistive heater on steady voltage -- no regulation needed to explain it
-  (earlier over-read). NET: defrost-heater engagement now fits BOTH timing (~8h
+  the wrong part or wrong value; the nameplate wins. The ~2.4A entry step is a
+  SEQUENCED HANDOFF (per the manual's COMP/heater/fan switching order): a few-second
+  compressor+heater OVERLAP as the inverter compressor de-energizes while the heater
+  is already on, settling to heater-alone (~1.9A). Confirmed reproducible across two
+  defrosts (07-20 comp 0.73A -> 2.38A; 08-08 comp 0.99A -> 2.56A) and the peak fits a
+  VECTOR sum of the lagging compressor (PF ~0.55) + resistive heater, NOT scalar
+  addition -- full profile in loads/kitchen_fridge.json defrost.entry_transient. The
+  flat 1.9A settle is just a resistive heater on steady voltage (earlier over-read). NET: defrost-heater engagement now fits BOTH timing (~8h
   run-hrs ~ the 7h floor) AND magnitude (198W nameplate). This is now the confirmed
   explanation; the inverter-drive-fault hypothesis is dropped.
 - Defrost heater = 254.7 ohm +/-5% -> ~52W @ 115V -> ~0.45A alone. Does not by
