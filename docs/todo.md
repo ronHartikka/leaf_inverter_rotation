@@ -6,6 +6,23 @@ commits as they're done.
 
 ---
 
+## HIGH — Get outdoor temperatures for the heating-budget regression
+
+The gas-vs-degree-days check, the UA (house heat-loss) fit, and the balance point
+all need an outdoor-temperature series that is NOT in the repo. This is the gating
+input for validating the whole furnace thermal model.
+
+- [ ] Pull daily temps for the local airport station covering the gas data span
+      (2021-01-02 -> present; 5 full heating seasons now in `data/gas/`).
+- [ ] Preferred: DAILY station temps (sharper UA + balance point). Monthly climate
+      normals reproduce the stored fit but can't resolve the balance point above ~63 F.
+- [ ] Drop into `data/gas/` and wire into `tools/gas_heating_budget.py` (the
+      `regress_ua` hook + a degree-day-vs-CCF correlation, base ~= balance point 63 F).
+- [ ] Then: confirm seasonal CCF tracks HDD linearly through the origin (the model's
+      cleanest internal check) and re-derive UA/balance point across all 5 seasons.
+
+---
+
 ## P0 — Temperature conversion correctness (DO NOT LOSE THIS)
 
 Discovered while reviewing `tools/dual_logger.py` for the fridge run. Real bug +

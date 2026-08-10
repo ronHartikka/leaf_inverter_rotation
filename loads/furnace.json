@@ -8,11 +8,13 @@
     "model": "58MVC080-F",
     "series": "100",
     "unit_size_code": "080-14",
+    "model_plug": "PL4 model plug = HK70EZ018 (3.5T080 row of the cabinet-door PL4 MODEL PLUG CHART). Pin resistances measured 10.88 kohm (pins 1-4, spec 11) and 17.70 kohm (pins 2-3, spec 18) => MATCH (pins 2-3 encode size: 11/18/24/33/39 = 060/3.5T080/5T080/100/120). Confirms the unit is configured 3.5-ton / 80,000 BTU. Cooling airflow for the 3.5-ton config = 1225 CFM at 350 CFM/ton (the door 'A/C OR CF AIRFLOW SELECTION CHART' basis) OR 1400 CFM at 400 CFM/ton, selectable via SW1-5 (Carrier product data 58MVC-5PD p.9-10; SW1-5 position not yet read) - both legitimate, see estimated_running_draw_by_stage.derivation_note. Door chart also gives default A/C airflow 1050 CFM and default continuous-fan 525 CFM (switches OFF). Verified by Ron 2026-08-07.",
     "nameplate_text_as_read": "INFINITY ICS MODEL 58MVC DELUXE 4-WAY MULTIPOISE VARIABLE-SPEED MULTI-STAGE CONDENSING GAS FURNACE Series 100, Input Rates: 60,000 thru 120,000 Btuh / 58MVC080-F-10114",
     "casing_width_in": 21,
     "orientation": "upflow",
     "afue_percent": 95.0,
-    "control_system": "Carrier Infinity, ABCD bus (RS-485, 38400 8N1)",
+    "control_system": "Carrier Infinity ICS, COMMUNICATING (CONFIRMED 2026-08-07). Thermostat = Carrier Infinity Touch SYSTXCCITC01-B (fw v2.00), communicating-only, over the 4-wire ABCD bus. Pinout (corroborated by the infinitive project + HVAC-Talk, and matches the original 38400 8N1 note): A/B = RS-485 data pair at 38400 8N1 (A=green Data A, B=yellow Data B); C/D = 24VAC (C=white Com, D=red Hot). Tap A/B ONLY - never connect to C/D (24VAC). Stage/status readable via infinitive-style decode - see control_board_label.resolved. PLAN: read bus via a genuine FTDI USB-RS485-WE-1800-BT cable on a Linux box; firmware-v2.00 may need an infinitive fork (infinitive-modern / hass-infinitive) - TBD before 2026-08-17.",
+    "thermostat_model": "Carrier Infinity Touch SYSTXCCITC01-B, firmware v2.00",
     "confidence": "high",
     "source": "user-read nameplate + Carrier product data 58MVC-5PD"
   },
@@ -50,8 +52,33 @@
       "interpretation_note": "maximum_unit_amps and blower FLA are ceilings for the module at max airflow and max static. They are NOT expected running values. Do not size the inverter budget from them."
     },
 
+    "blower_motor_nameplate": {
+      "as_read": "GE ECM Motors 3.0 / GC08 / by Regal-Beloit / 1/2 HP / 120/240 V / mfd 9/18/2009 / 19 0041BX",
+      "generation": "GE/Genteq ECM 3.0",
+      "manufacturer": "Regal-Beloit (GE ECM line)",
+      "model_marking": "GC08",
+      "hp": 0.5,
+      "volts": "120/240",
+      "date_of_manufacture": "2009-09-18",
+      "read_location": "motor nameplate, best viewed from the filter box with the filter removed",
+      "note": "Physical-label read RESOLVES the earlier aftermarket-catalog ambiguity: genuine ECM 3.0 (not the 2.3/2.5 some replacement listings imply). Confirms a brushless-DC, torque/airflow-controlled soft-ramp motor => NO locked-rotor inrush (consistent with the transients section); only the ~1 ms ECM DC-bus charge inrush at 115 V power-up applies. Carrier orderable assembly for the 58MVC blower is 58MV660006 (aftermarket cross-ref, medium confidence, NOT confirmed vs the factory parts diagram; reportedly a 2.5-gen substitute). Full GE model/serial and the 5SME39 module number were not transcribed.",
+      "confidence": "high",
+      "source": "motor nameplate read by Ron 2026-08-07"
+    },
+
+    "control_board_label": {
+      "carrier_part": "HK42FZ0354011",
+      "secondary_marking": "H84272835A81",
+      "series_note": "HK42FZ035 is the OEM control board for this furnace. HK42FZ0354011 is the full board marking (035 base + 4011 version); H84272835A81 is a secondary/OEM marking on the same board.",
+      "compatibility_confirmed": "RepairClinic PartDetail 2347709: 'Genuine OEM Part # HK42FZ035' and 'This part fits your Carrier Furnace 58MVC080-F-10114' (green check). Confirmed via Ron's screenshot 2026-08-07.",
+      "resolved": "COMMUNICATING (2026-08-07). Installed thermostat = Carrier Infinity Touch SYSTXCCITC01-B (v2.00), a communicating-only control => the ABCD bus IS present; HK42FZ035 pairs with the Infinity control over it. Earlier suspicion that HK42FZ035 = non-communicating was WRONG. Consequence: the furnace's actual stage (low/med/high), commanded blower CFM, and status may be readable directly off the ABCD bus (community reverse-engineering exists, e.g. the 'infinitive'/'Infinitude' projects) - a cleaner stage-state source than inferring stage from the current clamp. Worth evaluating for the measurement plan.",
+      "read_location": "furnace control board",
+      "confidence": "confirmed (part number and fitment to 58MVC080-F-10114)",
+      "source": "control board read by Ron + RepairClinic PartDetail 2347709 (screenshot) 2026-08-07"
+    },
+
     "estimated_running_draw_by_stage": {
-      "derivation_note": "ECM shaft power scales approximately as CFM^3 against a fixed duct system curve. Anchored at an assumed ~500 W for the 1400 CFM max-cooling airflow, then scaled to the certified heating airflows. Inducer (also variable-speed ECM) and control board estimated separately and added. ALL VALUES UNVERIFIED.",
+      "derivation_note": "ECM shaft power scales approximately as CFM^3 against a fixed duct system curve. Anchored at an assumed ~500 W near the blower's max airflow. Airflows VERIFIED against Carrier product data 58MVC-5PD p.9-10 (unit size 080-14), 2026-08-07: HEATING airflow Low=540, Medium=695, High=1220 CFM - with SW1-3 (low/med rise-adjust) and SW1-4 (comfort/eff) OFF; SW1-3 ON raises Low->620, Medium->800. COOLING airflow for a 3.5-ton coil = 1225 CFM at 350 CFM/ton OR 1400 CFM at 400 CFM/ton, selectable via SW1-5 (position not yet read); the blower 'Maximum' row = 1400 CFM (1375 at the certified 0.5 ESP). So 1225 and 1400 are BOTH legitimate cooling figures (SW1-5-dependent) - an earlier note that called 1400 a mistake was itself wrong. The CFM values are certified/confirmed; the est W/amps below remain UNVERIFIED cube-law estimates. Inducer (also variable-speed ECM) and control board estimated separately and added.",
       "stages": [
         {
           "stage": "low",
@@ -142,7 +169,7 @@
     "post_power_reset_behavior": "First cycle after any power reset is forced to 16 minutes of low heat before the control will consider stepping up, unless the thermostat is satisfied first. Convenient in a backup-power scenario, but do not rely on it by deliberately power-cycling.",
     "blower_off_delay_s": [90, 120, 150, 180],
     "blower_off_delay_note": "Selectable at the control board. The blower continues after burner shutoff to extract residual heat - this tail is part of the electrical load and must not be cut short by load shedding.",
-    "stage_lock_switch": "SW1-2 = low heat only (also disables adaptive heat mode). SW4-2 = medium heat only.",
+    "stage_lock_switch": "Board has FOUR DIP banks, verified against the board's own function legend (cabinet-door schematic) + board photos (Ron 2026-08-07): SW1 (8-pos SETUP), SW2 (3-pos 'AC' cooling airflow), SW3 (3-pos 'CF' continuous-fan airflow), SW4 (3-pos). SW2/SW3 select airflow via the door 'A/C OR CF AIRFLOW SELECTION CHART' (350 CFM/ton) and do NOT stage heat. Heat staging IS switch-selectable: SW1-2 = Low-Heat Only (force low fire), SW4-2 = Med-heat (force medium) - so the original 'SW1-2 low / SW4-2 med' literature was RIGHT; an earlier note here that claimed 'no SW4' was wrong (SW4 is a fourth bank that was just off-frame in the first photo). SW1 legend: 1=Status Code Recall, 2=Low-Heat Only, 3=Low-Heat Rise Adj, 4=Comfort/Efficiency Adj, 5=Cooling CFM/Ton, 6=Component Test, 7&8=Blower Off-Delay. SW4 legend: 1=Twinning Main(OFF)/Sec(ON), 2=Med-heat, 3=Future Use. AS-FOUND 2026-08-07: SW4 all OFF (Main unit, med-heat NOT forced, future unused); SW1-2 as-found state NOT yet read. NOTE: the ON orientation is printed on the switch bodies (the schematic legend does not show it) - see as-found board photos in the repo. OPEN: whether the SW1-2 / SW4-2 manual overrides take effect under the communicating Infinity control (they are furnace-board 'Manual Switch' overrides so they likely do, but unconfirmed).",
     "recommended_backup_mode": "SW1-2 low-heat-only. See thermal section: low fire alone covers the measured design load, so this costs nothing in capacity while cutting estimated draw from ~426 W to ~79 W.",
     "load_shed_policy": "DO NOT SHED THE FURNACE. Shed the fridge and freezer instead and let the furnace run to completion. Rationale: (a) restoring furnace power re-triggers the ECM DC bus inrush, (b) an aborted cycle wastes a 17 s igniter warm-up, (c) repeated aborts risk lockout.",
     "confidence": "medium",
@@ -153,7 +180,7 @@
     "house_ua_out_btuh_per_f": {
       "value": 310,
       "range": [310, 380],
-      "note": "Output-side envelope conductance, from regression of 2022-23 daily gas against local monthly climate normals. Upper end of range reflects the known warm-winter bias in that season.",
+      "note": "Output-side envelope conductance, from regression of 2022-23 daily gas against local monthly climate normals. (The earlier 'warm-winter bias' caveat on 2022-23 is WITHDRAWN: five-season duty analysis shows 2022-23 sits exactly on the 5-season mean duty - it is representative, not warm. See duty_cycle.multi_season_summary.) UA and balance point still await daily outdoor temps to re-fit across all 5 seasons - highest-value open item.",
       "confidence": "medium",
       "source": "regression on utility daily gas export 08/03/2022-09/05/2023"
     },
@@ -187,7 +214,29 @@
   },
 
   "duty_cycle": {
-    "basis": "2022-23 heating season, utility daily gas export, baseload-subtracted, assuming low fire throughout (justified by stage_adequacy above)",
+    "basis": "FIVE full heating seasons (2021-22 through 2025-26), DTE daily gas exports, baseload-subtracted, assuming low fire throughout (justified by stage_adequacy above). Recomputed by tools/gas_heating_budget.py from data/gas/*.csv; the 2022-23 detail below is the reference season and doubles as the script's self-test.",
+    "multi_season_summary": {
+      "n_full_seasons": 5,
+      "season_runtime_fraction_mean": 0.26,
+      "season_runtime_fraction_range": [0.23, 0.29],
+      "per_season_runtime_fraction": {
+        "2021-22": 0.29,
+        "2022-23": 0.26,
+        "2023-24": 0.23,
+        "2024-25": 0.26,
+        "2025-26": 0.28
+      },
+      "per_season_heating_ccf": {
+        "2021-22": 525,
+        "2022-23": 472,
+        "2023-24": 418,
+        "2024-25": 470,
+        "2025-26": 513
+      },
+      "note": "2022-23 (the season the whole thermal model was built on) lands exactly on the 5-season mean duty (0.26) -> it is REPRESENTATIVE, not the warm-winter outlier earlier assumed. Seasonal average duty is stable across five winters (0.23-0.29); the PEAK, however, has grown - see peak_observed.",
+      "confidence": "medium",
+      "source": "tools/gas_heating_budget.py over data/gas/ (2021-01-02..2026-08-08, 2045 days, 0 gaps, 0 overlap conflicts)"
+    },
     "season_span": "2022-10-01 to 2023-05-31",
     "season_hours": 5832,
     "season_heating_gas_ccf": 470,
@@ -205,11 +254,19 @@
       "2023-05": 0.085
     },
     "peak_observed": {
-      "dates": "2022-12-24 to 2022-12-27",
-      "gas_ccf_per_day": 5.165,
-      "avg_gas_input_btuh": 19935,
-      "low_fire_duty_fraction": 0.62,
-      "note": "Elliott cold snap - the hardest this furnace has worked in years. Value is a 4-day interpolated interval average; the true single-day peak inside it was somewhat higher."
+      "dates": "worst single day 2026-02-11, within the 2025-26 season",
+      "low_fire_duty_fraction": 0.78,
+      "worst_4day_low_fire_duty_fraction": 0.78,
+      "worst_single_day_ccf": 7.16,
+      "worst_single_day_low_fire_duty_fraction": 0.89,
+      "note": "REVISED to the five-season worst (2025-26). The 2022-23 Elliott snap is the MILDEST of the five winters' peaks and is superseded here for worst-case sizing. Recent winters ran the furnace 72-78% over their worst 4 days (2024-25 = 0.72, 2025-26 = 0.78), with single days near 0.89 low-fire duty. CAVEAT: single-day peaks are soft - 51-67% of daily reads are DTE-interpolated (Estimated Read=Yes); 4-day and seasonal figures are robust, single-day peaks indicative only. Daily outdoor temps would re-apportion interpolated intervals by degree-day and sharpen these.",
+      "prior_peak_elliott_2022": {
+        "dates": "2022-12-24 to 2022-12-27",
+        "gas_ccf_per_day": 5.165,
+        "avg_gas_input_btuh": 19935,
+        "low_fire_duty_fraction": 0.62,
+        "note": "Winter Storm Elliott, the Dec 2022 Arctic outbreak. 4-day interpolated interval average."
+      }
     },
     "gas_baseload_ccf_per_day": {
       "summer": 0.37,
@@ -218,7 +275,7 @@
       "note": "Non-furnace gas (water heater, range). Winter figure is higher because incoming mains temperature drops. Confirmed consistent across summer 2023 (0.373) and summer 2026 (0.349) exports."
     },
     "confidence": "medium",
-    "source": "utility daily gas exports; electrical duty inferred, not measured"
+    "source": "DTE daily gas exports (data/gas/, 5 full seasons) via tools/gas_heating_budget.py; electrical duty inferred from gas, not measured"
   },
 
   "estimated_electrical_energy": {
@@ -295,7 +352,7 @@
   "provenance": {
     "created": "2026-08-04",
     "furnace_electrical_values": "NONE MEASURED. Nameplate values from Carrier product data catalog 58MVC-5PD (Edition 09/10). Per-stage running estimates derived from certified airflow tables via ECM cube-law scaling - low confidence, superseded on first measurement.",
-    "duty_cycle_values": "Derived from utility daily gas usage exports, 08/03/2022-09/05/2023 (399 days, 141 actual reads, 236 independent read intervals) and 06/29/2026-08/03/2026 (36 days). Method: baseload subtraction then division by stage input rate.",
+    "duty_cycle_values": "Derived from DTE daily gas usage exports now committed under data/gas/ (2021-01-02..2026-08-08, 2045 days, 0 gaps, 5 full heating seasons) via tools/gas_heating_budget.py. Method: baseload subtraction then division by stage input rate. Originally single-season (2022-23); expanded to 5 seasons 2026-08-10, which confirmed the duty (mean 0.26) and revised the peak upward (see duty_cycle).",
     "thermal_values": "Regression of monthly gas against 1991-2020 local climate normals. Daily local airport-station observations were not available; substituting them is the highest-value open item for tightening UA and balance point.",
     "reference_documents": [
       "Carrier product data 58MVC-5PD",

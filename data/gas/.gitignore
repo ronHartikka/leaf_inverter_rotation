@@ -1,0 +1,4 @@
+# DTE utility gas exports — source data for the furnace heating-budget regression.
+# Small and provenance-bearing (see loads/furnace.json thermal/duty_cycle); track them
+# despite the repo-wide *.csv ignore. Filenames are as-exported by DTE (date range in name).
+!*.csv
