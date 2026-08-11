@@ -61,6 +61,28 @@
       ],
       "confidence": "medium (single clean stop; value stable over ~4.5 min)",
       "source": "data/run_auto_0802_1649.csv 2026-08-03T03:53:25..03:58 (median ~118 mA)"
+    },
+    "compressor_control_model": {
+      "_comment": "REVERSE-ENGINEERED from current + air-temp traces (NOT firmware). How the inverter varies compressor speed to regulate the fresh-food (FFC) compartment. Hypothesis, but it accounts for the sudden-onset ramps we kept seeing.",
+      "hypothesized_law": "compressor_speed = Bias + Kp*e + Ki*integral(e), with e = (FFC_temp - FFC_setpoint) and Bias = lookup_table(input) -> steady-state speed. The table's input is a temperature error / load proxy; output is the feedforward steady-state speed.",
+      "observed_behavior": "Approaching setpoint, speed DECLINES as the error shrinks (Kp*e falls), so the box equilibrates at a small proportional DROOP -- it nearly stabilizes ABOVE setpoint, not at it. Then the speed RAMPS UP with a SUDDEN ONSET (flat, then abruptly a ~2-3 min ramp to a higher speed). The sudden onset is the key: smooth P+I on a smoothly-varying error cannot start a ramp out of a flat line -> a DISCRETE trigger is involved.",
+      "droop_cancellation_hypothesis": "The controller DETECTS the near-stabilization at setpoint+offset (a discrete event), then re-indexes the Bias table to the REFLECTED target setpoint-offset (as far below setpoint as it drooped above), and SLEWS (ramps) the bias to that colder speed. The proportional droop then lands actual temp on the true setpoint (-offset target + offset droop = 0). It is effectively an EVENT-TRIGGERED integral/reset: instead of integrating continuously, it waits for stabilization, measures the offset once, and corrects in a single re-targeting through the table. The SIZE of the speed change = table(setpoint-offset) - current_speed (the lookup table sets the magnitude).",
+      "worked_example": {
+        "event": "2026-08-07 ~03:47, data/run_auto_0802_1649.csv",
+        "ramp": "current ~845 mA (flat) -> sudden onset ~03:47 -> ~912 mA settled by ~03:51",
+        "ffc_asymptote_pre_f": 36.9,
+        "ffc_asymptote_post_f": 35.4,
+        "asymptote_shift_f": 1.4,
+        "fit_method": "T(t) = Tinf + (T0-Tinf)*exp(-t/tau), numpy grid-search over tau. Pre: Tinf 36.9F, tau 15.6 min (well-constrained, ~1.7 tau observed). Post: Tinf 35.4F, tau 49.4 min (EXTRAPOLATED, only ~0.75 tau observed before the reading went stale + compressor stopped -> uncertain; heading below the last observed 36.08F, floor ~35.4-36.0). The 1.4F downward shift is robust; the exact post value less so.",
+        "implied_setpoint_f": 36.2,
+        "implied_droop_f": 0.7,
+        "setpoint_note": "IF the reflection is symmetric, the midpoint of the two asymptotes is the setpoint: (36.9+35.4)/2 ~= 36.2F, droop ~0.7F each side. Consistent with (not proof of) the model; the true FFC setpoint at this dial is not independently known."
+      },
+      "why_it_fits": "Accounts for all of: (1) sudden ONSET = discrete detect-and-retarget; (2) smooth RAMP = slewing the bias to the new table value; (3) continued COOLING after the ramp (FFC kept falling 37.5->36.9F, and the fitted asymptote is colder) = re-targeted to a colder bias, which a mere disturbance-response would not predict; (4) the SIZE = a table lookup difference.",
+      "ruled_out": "Earlier readings CORRECTED: (a) it is NOT a discrete speed 'step' -- fine data shows a ~2-3 min ramp, not the clean 100 ms edges seen at compressor stop; (b) NOT the FFC damper opening -- the damper is MANUAL and was not touched (Ron); (c) NOT simple integral windup -- that gives a smooth ramp with no sudden onset.",
+      "caveats_and_open": "HYPOTHESIS only (no firmware). We log just two AIR-temp probes + current; the controller's actual regulated variable (likely the evaporator/defrost sensor) and its internal decision state are UNLOGGED, so the exact trigger of the sudden onset is not directly observable. OPEN TEST: scan captures for other sudden-onset ramps -- if spaced by a CONSTANT time -> a decision-cadence tick; if tied to a recurring CONDITION -> a threshold crossing.",
+      "confidence": "medium (model is a good fit to multiple events; not firmware-confirmed)",
+      "source": "raw current + t2 air temp, data/run_auto_0802_1649.csv; 08-07 03:47 and 08-05 03:05 events; model framing by Ron"
     }
   },
 
