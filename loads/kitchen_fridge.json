@@ -39,7 +39,29 @@
     "running_current_a": { "value": 0.75, "confidence": "low (provisional)", "source": "pre-event baseline of the 2026-07-19/20 shakedown current trace", "notes": "Variable-speed inverter: ~0.75 A steady near setpoint, but ~1.5 A during pulldown/recovery (box warm, e.g. post-defrost 2026-07-21). SUPERSEDE with settled values from the fresh capture." },
     "inrush_peak_a": { "value": null, "confidence": null, "source": "", "notes": "WARNING: 10Hz/100ms-RMS sampling cannot resolve true inrush; any value is method-limited, not a surge peak." },
     "plateau_a": { "value": null, "confidence": null, "source": "", "notes": "Inverter compressor: expect a smooth ramp, not a PTC shelf." },
-    "inrush_duration_s": { "value": null, "confidence": null, "source": "", "notes": "" }
+    "inrush_duration_s": { "value": null, "confidence": null, "source": "", "notes": "" },
+    "compressor_stop_profile": {
+      "_comment": "Clean, heater-free compressor STOP (fridge's own cycle-end, power still applied). Isolates the inverter drive's deceleration profile -- the same rampdown seen inside the defrost entry (defrost.entry_transient), here with NO heater overlap to complicate it. Measured 2026-08-03 03:53 in data/run_auto_0802_1649.csv.",
+      "shape": "STEPPED, not instant: ~747 mA running -> one intermediate speed plateau ~520 mA held ~4 s -> compressor out. The inverter drive steps the compressor through discrete speed setpoints; each is a flat current plateau (this is why the defrost-entry down-steps are flat, not a smooth decay).",
+      "stop_duration_s": 4,
+      "intermediate_plateau_a": 0.52,
+      "running_before_a": 0.75,
+      "detection_note": "A compressor stop is a ~4-5 s event, not a single edge. Stop-detection must debounce ~4-5 s and NOT read the ~0.52 A intermediate plateau as a new steady state.",
+      "confidence": "high",
+      "source": "raw 10 Hz current, data/run_auto_0802_1649.csv 2026-08-03T03:53"
+    },
+    "compressor_off_idle_a": {
+      "value": 0.12,
+      "range_a": [0.105, 0.16],
+      "_comment": "The fridge does NOT draw ~0 when its compressor is off -- while still powered it idles at ~120 mA / ~14 W (control board + inverter electronics, possibly a fan/damper). Held a median ~118 mA for minutes after the 08-03 03:53 stop, with relay_cmd=1 (power on) the whole time.",
+      "implications": [
+        "'compressor off' != 'zero current': set stop_a / compressor_on inference ABOVE ~120 mA and below ~750 mA running.",
+        "continuous between-cycle baseload to budget (~14 W), the fridge analog of the furnace ~12 W standby.",
+        "DISCRIMINATOR: a fridge-internal stop leaves the ~120 mA floor; OUR relay opening drops to true ~0 mA (power removed). The trace alone distinguishes 'the fridge chose to stop' from 'we cut it'."
+      ],
+      "confidence": "medium (single clean stop; value stable over ~4.5 min)",
+      "source": "data/run_auto_0802_1649.csv 2026-08-03T03:53:25..03:58 (median ~118 mA)"
+    }
   },
 
   "control_constants": {
@@ -93,8 +115,8 @@
   "peak_a": 2.6,
   "peak_range_a": [2.38, 2.56],
   "peak_duration_s": 2,
-  "shape": "STAIRCASE, not a smooth curve: compressor running -> STEP UP to a ~2.4-2.6 A plateau (~2 s) -> STEP DOWN one plateau (~3-4 s) -> settles to heater-alone ~1.9 A. Plateaus are DEAD FLAT (no thermal decay within them) -> rules out a cold-element inrush; the steps are sequenced load switching per the manual's order.",
-  "mechanism": "brief COMPRESSOR+HEATER OVERLAP during the transition -- the inverter compressor is de-energizing/decelerating while the resistive heater is already on. NOT steady co-running: the manual's avoid-simultaneous rule is a START-UP behavior; a mid-run defrost entry permits the few-second handoff overlap (Ron, 2026-08-10).",
+  "shape": "STAIRCASE, not a smooth curve: compressor running -> STEP UP to a ~2.4-2.6 A plateau (~2 s) -> STEP DOWN one plateau (~3-4 s) -> settles to heater-alone ~1.9 A. Plateaus are DEAD FLAT (no thermal decay within them) -> rules out a cold-element inrush. The down-steps are the COMPRESSOR DRIVE decelerating through discrete speed setpoints (confirmed by the clean heater-free stop, electrical.compressor_stop_profile: same ~4 s stepped rampdown), NOT the board relay-sequencing separate loads.",
+  "mechanism": "At defrost initiation the board issues all commands ~simultaneously -- heater ON, evaporator fan OFF, compressor STOP (per the manual; the strict avoid-simultaneous ordering is really a START-UP behavior). But the heater is resistive (full-on in ms) while the compressor AND evap fan are BOTH BLDC (electronically driven, no relay-fast stop). So the compressor is still at full running current the instant the heater lands on top -> the ~2.6 A peak -> then its drive ramps it out over ~4-5 s. The overlap is a slow motor riding under an instant heater, NOT deliberate co-running (Ron, 2026-08-10). The small evap-fan term is buried in the first transition and can't be isolated from RMS current.",
   "why_peak_below_scalar_sum": "the peak (2.38-2.56 A) is BELOW 0.73/0.99 A comp + 1.9 A heater because RMS currents of the LAGGING compressor (motor, PF ~0.55) and the IN-PHASE heater (resistive) add as VECTORS, not arithmetically: |I| = sqrt(I_h^2 + I_c^2 + 2*I_h*I_c*cos(theta)). With heater 1.9 A, cos(theta) ~= 0.55 (theta ~57 deg) fits BOTH events. The peak scales with how hard the compressor is running at entry, at a ~constant 0.55 motor PF. CAVEAT: logger is RMS-amps only (no phase/PF); the 0.55 is INFERRED, to be confirmed by the scope's VA/PF measurement.",
   "planning_note": "Defrost ENTRY can hit ~2.6 A for ~2 s -- HIGHER than the flat ~1.9 A defrost steady. Small, but it is the real transient number for this load's worst brief draw.",
   "measured_events": [
