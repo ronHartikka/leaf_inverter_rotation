@@ -1,6 +1,9 @@
 # Raw capture CSVs + .raw sidecars are large and local-only; keep them out of git.
 *.csv
 *.raw
+*.log
 !.gitignore
 # ...except one small committed sample so the viewer tools have something to demo.
 !sample_run_auto.csv
+# Spreadsheets derived from the raw captures; large + binary, keep them local.
+*.ods

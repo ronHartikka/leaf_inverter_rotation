@@ -10,3 +10,5 @@ __pycache__/
 *.pyc
 .venv/
 .DS_Store
+# Real WiFi credentials -- never commit (template: wifi_secrets_example.h)
+firmware/shared/wifi_secrets.h

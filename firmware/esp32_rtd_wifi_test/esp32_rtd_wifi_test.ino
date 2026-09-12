@@ -14,9 +14,9 @@
 #include <WiFi.h>
 #include <Adafruit_MAX31865.h>
 
+#include "../shared/wifi_secrets.h"   // WIFI_SSID / WIFI_PASS -- git-ignored, see wifi_secrets_example.h
+
 // ---- CONFIG ----
-const char*    WIFI_SSID = "YOUR_SSID";        // <-- fill in (2.4 GHz net)
-const char*    WIFI_PASS = "YOUR_PASSWORD";    // <-- fill in
 const char*    HOST      = "192.168.1.243";    // the listener host's LAN IP (re-check if it changes)
 const uint16_t PORT      = 9000;
 
