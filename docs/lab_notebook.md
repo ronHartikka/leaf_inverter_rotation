@@ -133,3 +133,39 @@ FC=1 (FFC 5) — duty and run-structure.
   tracks thermal mass" reading (loads/kitchen_fridge.json compressor_control_model): the raw restart
   drop (873→839→814 mA) is mostly cut-in-FFC differences + the ~1-min restart boost, not a falling
   Bias — B/C/D share one line. JSON still to be synced to this.
+
+- **2026-09-04 15:05 — POWER-ON DELAY CONFIRMED AFTER A MULTI-HOUR OFF PERIOD (real outage).**
+  Extends the n=44 characterization of 2026-08-08, whose stated caveat was that *"all events are
+  brief-coast restarts, which the fridge may not treat as a genuine cold plug-in."* During the
+  2026-09-03/04 outage the kitchen fridge sat **unpowered ~2 h** (rotation gave the inverter to the
+  chest freezer ~13:00–14:58), then: **powered 14:58 → compressor + freezer fan started 15:05,
+  ≈7 min.** Same delay as the brief-coast restarts. So the anti-short-cycle hold is NOT specific to
+  short coasts; it survives a multi-hour outage-scale off period. The flowchart's "genuine cold
+  plug-in" branch remains untested (that would need a truly cold/long-dead unit), but the practical
+  range of the ~7-min constant is now much wider than the Aug-8 entry could claim.
+  METHOD NOTE: 15:05 is the observed compressor start; the power-on time was a wall-clock guess
+  ("14:55 or so"). Ron correctly inverted the inference — the 7.05 min constant is measured 44/44
+  identical, the human timestamp was not, so the constant calibrates the timestamp: 15:05 − 7.1 min
+  = **14:58**. Trust the hard number over the soft one, not the reverse.
+
+- **2026-09-04 — PRE-POWER OVERLAP: analyzed, NOT adopted, NOT tested. Recorded so it is not
+  re-derived from scratch.** IDEA (Ron): since the fridge does nothing for ~7 min after power-on,
+  apply power to the fridge ~7 min BEFORE removing power from the other load, so the anti-short-cycle
+  hold elapses during the overlap and cooling resumes the instant the swap completes. This would hide
+  the "hidden penalty" flagged in the 2026-08-04 design note (every relay-open costs ~7 min of no
+  cooling on restore).
+  WHY IT IS PROBABLY SAFE: the binding constraint in this system is **surge coincidence, not steady
+  draw** (docs/hardware.md; loads/furnace_electrical_load.md §3). During the overlap the fridge draws
+  1.9 A for 4.0 s (defrost-heater pulse) then ~0.12 A idle; the chest freezer runs at 0.72 A. Worst
+  instant ≈ 2.6 A ≈ 300 W against a 1000 W inverter. And when the fridge compressor does come up it is
+  a **BLDC inverter compressor — soft start, measured 1.5 A peak, NO locked-rotor inrush** — so its
+  start alongside a running freezer costs nothing.
+  RESIDUAL RISK (the reason this is not adopted): if the chest freezer's mechanical thermostat happens
+  to cycle it **ON** during the 7-min overlap, its locked-rotor surge coincides with the fridge's
+  draw. That surge is the one real inrush in the system and is still UNMEASURED — lessons.md #10 says
+  the ~3.5 A figure is method-limited (10 Hz / 100 ms RMS cannot resolve it) and the true peak is
+  likely much higher. Short window, real risk, unquantified.
+  RELATION TO EXISTING GUIDANCE: does not contradict "interrupt on conflict, not preemptively"
+  (2026-08-04 design insight) — it only reduces the cost of a swap that has already been decided on.
+  TO SETTLE IT: measure the chest freezer's actual LRA magnitude and duration with a scope + shunt
+  (already an open item in loads/furnace.json provenance.open_items).
