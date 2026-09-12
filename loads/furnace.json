@@ -15,6 +15,7 @@
     "afue_percent": 95.0,
     "control_system": "Carrier Infinity ICS, COMMUNICATING (CONFIRMED 2026-08-07). Thermostat = Carrier Infinity Touch SYSTXCCITC01-B (fw v2.00), communicating-only, over the 4-wire ABCD bus. Pinout (corroborated by the infinitive project + HVAC-Talk, and matches the original 38400 8N1 note): A/B = RS-485 data pair at 38400 8N1 (A=green Data A, B=yellow Data B); C/D = 24VAC (C=white Com, D=red Hot). Tap A/B ONLY - never connect to C/D (24VAC). Stage/status readable via infinitive-style decode - see control_board_label.resolved. PLAN: read bus via a genuine FTDI USB-RS485-WE-1800-BT cable on a Linux box; firmware-v2.00 may need an infinitive fork (infinitive-modern / hass-infinitive) - TBD before 2026-08-17.",
     "thermostat_model": "Carrier Infinity Touch SYSTXCCITC01-B, firmware v2.00",
+    "thermostat_number_disambiguation": "Several numbers attach to this thermostat; only one is the model. MODEL = SYSTXCCITC01-B (per the Carrier app). 'A240356' (rear label), 'A170203' (manual cover, BLACK unit) and 'A180218C' (manual cover, WHITE unit) are Carrier ILLUSTRATION/ARTWORK numbers, formatted A + 2-digit year + sequence - the same series as A150175 / A160107 / A170241C / A13122A scattered through the books. None is a model or form number. The cover shows the black and white units side by side with those two captions, which reads as if the caption names the unit; it does not, though the black image does depict this unit's finish. A240356 dates the rear-label artwork to 2024, consistent with a late production run of the -B. Carrier's actual form number is in the footer: Catalog No. SYSTXCCITC-05SI, Edition Date 03/19. NOTE the -05SI cover lists four models (SYSTXCCITC01-B / SYSTXCCWIC01-B / SYSTXCCICF01-B / SYSTXCCWIF01-B) but they appear ONLY on the cover - the body never distinguishes them, so the manual does not say what separates the variants. Model identification rests on the app. Resolved 2026-09-03 by Ron reading the label + app and checking the A-number pattern against the manual text.",
     "confidence": "high",
     "source": "user-read nameplate + Carrier product data 58MVC-5PD"
   },
@@ -169,8 +170,74 @@
     "post_power_reset_behavior": "First cycle after any power reset is forced to 16 minutes of low heat before the control will consider stepping up, unless the thermostat is satisfied first. Convenient in a backup-power scenario, but do not rely on it by deliberately power-cycling.",
     "blower_off_delay_s": [90, 120, 150, 180],
     "blower_off_delay_note": "Selectable at the control board. The blower continues after burner shutoff to extract residual heat - this tail is part of the electrical load and must not be cut short by load shedding.",
-    "stage_lock_switch": "Board has FOUR DIP banks, verified against the board's own function legend (cabinet-door schematic) + board photos (Ron 2026-08-07): SW1 (8-pos SETUP), SW2 (3-pos 'AC' cooling airflow), SW3 (3-pos 'CF' continuous-fan airflow), SW4 (3-pos). SW2/SW3 select airflow via the door 'A/C OR CF AIRFLOW SELECTION CHART' (350 CFM/ton) and do NOT stage heat. Heat staging IS switch-selectable: SW1-2 = Low-Heat Only (force low fire), SW4-2 = Med-heat (force medium) - so the original 'SW1-2 low / SW4-2 med' literature was RIGHT; an earlier note here that claimed 'no SW4' was wrong (SW4 is a fourth bank that was just off-frame in the first photo). SW1 legend: 1=Status Code Recall, 2=Low-Heat Only, 3=Low-Heat Rise Adj, 4=Comfort/Efficiency Adj, 5=Cooling CFM/Ton, 6=Component Test, 7&8=Blower Off-Delay. SW4 legend: 1=Twinning Main(OFF)/Sec(ON), 2=Med-heat, 3=Future Use. AS-FOUND 2026-08-07: SW4 all OFF (Main unit, med-heat NOT forced, future unused); SW1-2 as-found state NOT yet read. NOTE: the ON orientation is printed on the switch bodies (the schematic legend does not show it) - see as-found board photos in the repo. OPEN: whether the SW1-2 / SW4-2 manual overrides take effect under the communicating Infinity control (they are furnace-board 'Manual Switch' overrides so they likely do, but unconfirmed).",
-    "recommended_backup_mode": "SW1-2 low-heat-only. See thermal section: low fire alone covers the measured design load, so this costs nothing in capacity while cutting estimated draw from ~426 W to ~79 W.",
+    "stage_lock_switch": "Board has FOUR DIP banks, verified against the board's own function legend (cabinet-door schematic) + board photos (Ron 2026-08-07): SW1 (8-pos SETUP), SW2 (3-pos 'AC' cooling airflow), SW3 (3-pos 'CF' continuous-fan airflow), SW4 (3-pos). SW2/SW3 select airflow via the door 'A/C OR CF AIRFLOW SELECTION CHART' (350 CFM/ton) and do NOT stage heat. Heat staging IS switch-selectable: SW1-2 = Low-Heat Only (force low fire), SW4-2 = Med-heat (force medium) - so the original 'SW1-2 low / SW4-2 med' literature was RIGHT; an earlier note here that claimed 'no SW4' was wrong (SW4 is a fourth bank that was just off-frame in the first photo). SW1 legend: 1=Status Code Recall, 2=Low-Heat Only, 3=Low-Heat Rise Adj, 4=Comfort/Efficiency Adj, 5=Cooling CFM/Ton, 6=Component Test, 7&8=Blower Off-Delay. SW4 legend: 1=Twinning Main(OFF)/Sec(ON), 2=Med-heat, 3=Future Use. AS-FOUND 2026-08-07: SW4 all OFF (Main unit, med-heat NOT forced, future unused); SW1-2 as-found state NOT yet read. NOTE: the ON orientation is printed on the switch bodies (the schematic legend does not show it) - see as-found board photos in the repo. POSSIBLY SUPERSEDABLE by stage_lock_thermostat below - the Infinity control has its own staging-select menu item - but that menu's selectable values have not been seen yet, so the DIP-switch route remains the documented method. OPEN: whether the SW1-2 / SW4-2 manual overrides take effect under the communicating Infinity control (they are furnace-board 'Manual Switch' overrides so they likely do, but unconfirmed).",
+
+    "stage_lock_thermostat": {
+      "status": "OBSERVED ON SCREEN (menu item + current value + help text) and CORROBORATED BY THE MANUFACTURER'S MANUAL for this control revision (option list + semantics). The picker's contents have still not been seen on THIS unit - the '^'/'v' controls are deliberately unpressed - so the documented list below is the expected list, not the confirmed one.",
+      "found": "2026-08-19, Ron, at the Infinity Touch thermostat",
+      "menu_path": "Menu -> Service (press and hold ~10 s) -> Setup -> Furnace -> Gas Heat Staging",
+
+      "screen_as_seen": {
+        "bottom_left_button": "Cancel",
+        "bottom_right_button": "Save",
+        "middle_column_top_to_bottom": ["gas heat staging", "STAGES", "SYSTEM", "^", "v", "i"],
+        "note": "Verbatim layout as Ron read it. '^' and 'v' are presumed up/down value-scroll controls and 'i' is the info/help button (pressing 'i' is what produced help_text_as_displayed). The '^' and 'v' controls have NOT been pressed, so the list of selectable values is UNSEEN."
+      },
+
+      "help_text_as_displayed": "Furnace Staging Setup. Selects how the furnace stages are controlled. System staging provides full modulation. Furnace staging uses the furnace controls internal staging algorithm. Low staging runs the furnace at its lowest stage. High staging runs the furnace at its highest stage.",
+
+      "what_the_help_text_does_and_does_not_establish": "The on-screen help names four staging behaviors (System, Furnace, Low, High) but is prose describing modes, not an enumeration of the picker's contents. An earlier revision of this file asserted a definite 4-item option list and a definite ABSENCE of a medium option; both were inferences stated as fact and were withdrawn. The manufacturer's option list is now documented below and CONTRADICTS the withdrawn no-medium claim.",
+
+      "documented_option_list": {
+        "verbatim": "S Stages: System, Low, Low- Med, Med, Med- High, or High / d Default = System",
+        "semantics_verbatim": "This option controls the staging of the furnace and selects the minimum amount of time low stage must operate before high stage is activated. SYSTEM setting will allow the Infinity Zone Control to determine furnace staging. LOW will only run the low stage of furnace heat. LOW-MED will run the low and medium stages (2 stages of heat). MED will only run the medium stage of heat. MED-HIGH will run the medium and high stages (2 stages of heat). HIGH will only run the high stage of furnace heat.",
+        "equipment_caveat_verbatim": "NOTE: Two-stage furnace has LOW and HIGH selections only.",
+        "applies_to_this_furnace": "The 58MVC080-F has a THREE-stage gas valve, so the two-stage restriction above should NOT apply and MED should be offered. Not yet confirmed on the actual screen.",
+        "medium_is_offered": "YES per the manual - MED is an explicit selection, and MED-HIGH as well. This directly refutes the withdrawn 'no medium option' claim.",
+        "important_semantics_note": "LOW-MED and MED-HIGH are NOT intermediate firing rates. They ENABLE TWO STAGES each (low+med, med+high). Only LOW, MED, and HIGH are single-stage locks - those three are the ones useful for isolating a stage during measurement.",
+        "confidence": "high for the SYSTXCCITC01-B revision as documented; the installed control runs firmware v2.00 and its picker has not been observed, so treat as the expected list rather than the confirmed one",
+        "source": "Carrier SYSTXCCITC01-B Infinity System Control Installation Instructions, Catalog No. SYSTXCCITC-05SI, Edition Date 03/19, section 6.3.3.3 'Furnace Staging'. Local copy: docs/reference/SYSTXCCITC-05SI_installation_instructions.pdf (git-ignored). EDITION CHECK: this section is byte-identical in the older 09/17 (-02SI) edition, and the -C manual lists the same six values, so the option list is stable across revisions. A later edition (-08SI) exists but was not retrievable; if a screen disagrees with this quote, suspect the edition."
+      },
+
+      "as_found_value": "SYSTEM. The manual's setting label is 'Stages' and its documented default is System, which matches the on-screen 'STAGES' / 'SYSTEM' pair exactly - so SYSTEM is the live current value, not a heading, and it is also the factory default. This is the value to restore to.",
+
+      "discrepancy_unresolved": "The on-screen help text describes a 'Furnace staging' mode ('uses the furnace controls internal staging algorithm'), but section 6.3.3.3's Stages list does NOT include a 'Furnace' value. Older Infinity wall controls (SYSTXCCUID01 family) DID document FURNACE as a selection. So either fw v2.00 offers a seventh value the -B manual omits, or the help text is inherited boilerplate describing a mode this control no longer exposes. UNRESOLVED - do not assume either way.",
+
+      "open_questions": [
+        "Confirm the picker's actual contents on screen against the documented list (fw v2.00 vs the -B manual).",
+        "Is a 'Furnace' value present, as the on-screen help implies but the manual's list does not? See discrepancy_unresolved.",
+        "If a stage lock is selected, does the furnace's actual firing rate follow it? Verify against measured current - do not trust the menu label."
+      ],
+
+      "operational_advantage": "A thermostat-side stage lock is preferable to the SW1-2 / SW4-2 DIP switches for measurement runs: reversible in seconds, no opening the interlocked blower door (which kills the 115 V feed being measured), and visible from the living space rather than hidden in the cabinet. NOTE HOWEVER that for measurement purposes the Checkout exercise (see checkout_furnace_exercise) is better still, because it also TRIGGERS the run rather than only constraining it.",
+
+      "confidence": "high for the menu path, the on-screen layout, and the help text (all read directly off the thermostat); NONE for the selectable option list, which has not been observed",
+      "source": "Carrier Infinity Touch SYSTXCCITC01-B fw v2.00 service menu, read by Ron 2026-08-19"
+    },
+
+    "checkout_furnace_exercise": {
+      "status": "FOUND IN THE MANUAL 2026-08-19, NOT YET TRIED. Potentially the single most useful measurement tool for this load - it may remove the need to force heat calls from the thermostat at all.",
+      "menu_path": "Menu -> Service (press and hold ~10 s, icon turns green) -> Check out -> Furnace",
+      "manual_section": "6.4.2 Furnace, p.63-64",
+      "description_verbatim": "This option allows the furnace to be exercised. First, a low heat run time and high heat run time are selected. The furnace will execute its ignition start-up sequence. This sequence will be displayed on the screen. After the gas valve and blower motor turn on, the screen will show the current operating status of the furnace. After the selections are made, touch START.",
+      "settings_verbatim": "S Low Heat: Selectable from 0 to 120 minutes / d Default = 5 minutes ; S High Heat: Selectable from 0 to 120 minutes / d Default = 5 minutes",
+
+      "why_this_beats_the_staging_lock_for_measurement": [
+        "It TRIGGERS the burn on demand. The staging setting only constrains a call the thermostat decides to make; in warm weather there may be no call at all. This is the warm-weather-measurement problem the plan flagged, solved.",
+        "Run length is chosen directly (0-120 min per stage), so a capture window can be set to whatever the scope needs.",
+        "Setting one stage's time to 0 isolates the other - a low-only or high-only run without touching any DIP switch or any saved configuration.",
+        "It is a transient mode, not a saved setting, so there is nothing to forget to restore afterwards. That removes the whole 'a staging lock left behind is silent' hazard.",
+        "The screen displays the ignition sequence and live operating status - an independent witness of WHICH phase the furnace is in, to align against the current trace. Without the FTDI cable this is the best available stage-state source (see identity.control_system).",
+        "Note it exercises LOW and HIGH only - no medium run time is offered - so a medium-stage measurement still needs either the Stages picker set to MED or SW4-2 at the board."
+      ],
+
+      "airflow_caveat": "CHECKED AND NARROWED 2026-08-19. The manual's note 'Airflows during Checkout modes are fixed to the EFFICIENCY setting and are independent of other airflow settings' appears under 6.4.4 (Air Conditioning), 6.4.5 (Heat Pump Heating) and the other cooling/heat-pump checkout items - it is NOT attached to 6.4.2 Furnace. Section 6.4.2 was read in full (it runs from its heading to 6.4.3 Hydronic with no such note), so this is a scoping fact, not a gap in the extraction. CONCLUSION: the manual does not impose Efficiency airflow on the FURNACE checkout. RESIDUAL RISK: it does not affirmatively state that furnace checkout uses the configured airflow either, and section 6.3.3.1 sets Furnace Airflow Comfort/Efficiency with Default = Comfort. Since blower power scales roughly as CFM^3, a mismatch would matter more than anything else in the capture. CHEAP EMPIRICAL CHECK: measure low stage once via Checkout and once via a real thermostat call and compare steady blower watts. Do that before populating estimated_running_draw_by_stage from Checkout-mode numbers.",
+
+      "safety_note_verbatim": "WARNING - PROPERTY DAMAGE AND/OR PERSONAL INJURY HAZARD. Before running Check Out mode, make sure that all HVAC equipment is properly installed.",
+      "confidence": "high that the feature exists and behaves as documented for this control revision; UNTRIED on this unit, and the airflow question above is open",
+      "source": "Carrier SYSTXCCITC01-B Installation Instructions, Catalog No. SYSTXCCITC-05SI, Edition Date 03/19, sections 6.4 / 6.4.2. Local copy: docs/reference/SYSTXCCITC-05SI_installation_instructions.pdf (git-ignored). EDITION CHECK: 6.4.2 is byte-identical in the older 09/17 (-02SI) edition."
+    },
+    "recommended_backup_mode": "SW1-2 low-heat-only. (A thermostat-side staging lock may turn out to be a cleaner route - see stage_lock_thermostat - but its option list is unverified, so it is not the recommendation yet.) See thermal section: low fire alone covers the measured design load, so this costs nothing in capacity while cutting estimated draw from ~426 W to ~79 W.",
     "load_shed_policy": "DO NOT SHED THE FURNACE. Shed the fridge and freezer instead and let the furnace run to completion. Rationale: (a) restoring furnace power re-triggers the ECM DC bus inrush, (b) an aborted cycle wastes a 17 s igniter warm-up, (c) repeated aborts risk lockout.",
     "confidence": "medium",
     "source": "Carrier product data + troubleshooting literature; trip thresholds are proposals pending measurement"
@@ -290,8 +357,8 @@
 
   "inverter_compatibility": {
     "waveform_requirement": "PURE SINE WAVE REQUIRED. ECM blower, ECM inducer, and a microprocessor control board. Modified sine will at best run the ECM hot and noisy.",
-    "neutral_ground_bond_required": true,
-    "neutral_ground_note": "CRITICAL AND OFTEN MISSED. The furnace proves flame by rectifying a microamp AC current through the flame to chassis ground. This requires correct line/neutral polarity AND a neutral-to-ground bond. Many portable inverters have a floating output. Failure signature: burner lights, runs 5-7 s, drops out, retries, locks out after 3-4 attempts. Looks like a gas or flame-sensor fault; is actually an electrical bonding fault. Verify the inverter's bond before diagnosing anything else.",
+    "neutral_ground_bond_required": false,
+    "neutral_ground_note": "CORRECTED 2026-09-12 - this field previously carried a generic warning that is WRONG for this installation. MEASURED REALITY: the furnace runs from the Renogy RNG-INVT-1000-12V-P2 on LINE AND NEUTRAL ONLY - house black and white lifted at the furnace, inverter black/white wire-nutted to the furnace black/white, NO green wire between inverter and furnace. It lights, proves flame, completes the cycle and heats the house; done repeatedly. WHY: the flame-rectification loop closes INSIDE the furnace (control board -> flame rod -> flame -> burner/chassis -> back to the board's own ground reference), so it needs neither the source's neutral-to-ground bond nor any earth connection. The old warning also assumed a FLOATING inverter output; this inverter documents an INTERNAL neutral-ground bond, so that premise never held for it either. WHAT DOES HAPPEN: connecting a green wire from inverter to furnace shuts the inverter down (Ron's recollection: yellow GFCI indication - recalled, not logged). Zero shutdowns since the green wire was left off. Mechanism INFERRED, not measured: the internal N-G bond plus a green wire to the earthed furnace chassis completes the only earth return path, so ordinary line-to-chassis leakage (ECM drive EMI-filter capacitors, hot-surface igniter to its grounded mount) returns outside the white wire and reads as a ground fault. Full write-up: docs/outage_procedures.md section 8.1.",
     "polarity_sensitive": true,
     "ancillary_loads_to_not_forget": [
       "condensate pump if fitted - furnace locks out on the condensate switch if it is unpowered",
@@ -300,7 +367,8 @@
     ],
     "hardwired": true,
     "confidence": "high",
-    "source": "product data + standard flame-rectification behavior"
+    "floating_output_safety_note": "With no green wire the inverter output is floating with respect to earth. A single line-to-chassis fault inside the furnace is then SILENT - nothing trips, and the GFCI cannot see it because that fault current returns through the conductors it measures. The system keeps running, earth-referenced through the fault, white wire at 120 V to earth with no indication. Fine for supervised outage use; get an electrician's opinion before making it permanent.",
+    "source": "measured on this installation 2026-09-12 (repeated practice, Ron) + Renogy INVT-P2 manual; trip mechanism inferred, not measured"
   },
 
   "cross_load_notes": {
@@ -317,17 +385,17 @@
   "measurement_plan": {
     "status": "NOT STARTED",
     "can_be_done_before_heating_season": true,
-    "method_note": "Force heat calls from the thermostat in warm weather. Keep runs short. Use the control board setup switches to isolate stages rather than waiting for the adaptive algorithm to select one.",
+    "method_note": "Force heat calls in warm weather; keep runs short; isolate stages deliberately rather than waiting for the adaptive algorithm to select one. THREE ROUTES now known, best first: (1) Service -> Check out -> Furnace exercises the furnace on demand with per-stage run times, 0-120 min - it both TRIGGERS and BOUNDS the run and leaves no setting behind (see control_constants.checkout_furnace_exercise; verify its airflow caveat first). (2) Service -> Setup -> Furnace -> Gas Heat Staging = LOW / MED / HIGH pins the stage for real thermostat calls (see control_constants.stage_lock_thermostat); restore it to SYSTEM afterwards. (3) SW1-2 / SW4-2 at the control board - the original route, requires opening the interlocked blower door. Routes 1 and 2 are documented in the manufacturer's manual but UNTRIED on this unit; the runs below still name the board switches so the plan stands on its own if neither works.",
     "sensing_note": "Measure at the furnace 115 V feed at the junction box, upstream of everything, so blower + inducer + igniter + control board land in one signal. The blower access panel has an interlock switch that kills 115 V when opened - plan the tap accordingly. Do NOT use a 100 A CT: at 0.8 A that is 0.8 percent of full scale. Use a 5-10 A split-core, or pass the hot conductor through a larger CT 5 times for 5x sensitivity.",
     "runs": [
       {
         "run": "low_heat_locked",
-        "setup": "SW1-2 ON (low heat only)",
+        "setup": "SW1-2 ON (low heat only). A thermostat-side lock may prove easier once the Gas Heat Staging picker's values are known - see control_constants.stage_lock_thermostat - but that is unverified, so this run is still specified at the board.",
         "capture": ["steady W", "steady VA and PF", "igniter transient profile at >=1 kHz", "full sequence timing", "standby W between cycles"]
       },
       {
         "run": "medium_heat_locked",
-        "setup": "SW4-2 ON (medium heat only)",
+        "setup": "SW4-2 ON (medium heat only). Whether the thermostat's Gas Heat Staging picker offers a medium value is UNKNOWN - unread either way.",
         "capture": ["steady W", "steady VA and PF"]
       },
       {
@@ -338,7 +406,8 @@
       {
         "run": "end_to_end_inverter_test",
         "setup": "furnace + fridge + freezer all on the 1 kW inverter from the LEAF, car in Ready",
-        "capture": ["whether the furnace proves flame at all (N-G bond check)", "inverter behavior on freezer compressor start", "worst observed combined VA"]
+        "capture": ["inverter behavior on freezer compressor start", "worst observed combined VA"],
+        "note": "Flame proving is ALREADY ANSWERED (2026-09-12): the furnace lights and heats the house on this inverter with line and neutral only, no green wire. Do NOT connect a green wire between inverter and furnace - it trips the inverter's GFCI. See inverter_compatibility.neutral_ground_note."
       }
     ],
     "post_measurement_actions": [
@@ -347,7 +416,7 @@
       "set min_run_time_s from observed full cycle length including blower off-delay",
       "decide whether the freezer needs a start interlock or soft starter"
     ],
-    "reminder": "Return the stage-lock switches to their original positions after testing, and label the setting inside the furnace door."
+    "reminder": "Return the stage-lock switches to their original positions after testing, and label the setting inside the furnace door. If the thermostat's Gas Heat Staging setting is ever changed, record its as-found value first and restore it too - a staging lock left behind is silent, since the furnace keeps heating, just at the wrong rate."
   },
 
   "provenance": {
@@ -364,7 +433,6 @@
       "all furnace electrical measurements",
       "power factor / VA for every stage",
       "daily local airport-station temperatures for 2022-23 to replace normals in the UA regression",
-      "inverter neutral-ground bond verification",
       "chest freezer LRA magnitude and duration (the one real surge in the system)"
     ]
   }

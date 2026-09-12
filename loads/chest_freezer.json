@@ -19,6 +19,15 @@
     "compressor_type": "induction, PTC/capacitor start not conclusively resolved from this run (100ms burst under-sampled the start transient; see electrical.plateau_a)",
     "control": "mechanical thermostat in series (assumed; confirm)",
     "listing": "UL listed household freezer, 126A / LR7788; free-standing installation only",
+    "heat_rejection": {
+      "type": "HOT-WALL (skin) condenser -- CONFIRMED BY TOUCH 2026-09-04",
+      "warm_zones_observed": "Warm areas felt on the FRONT, LEFT and RIGHT outer panels, HIGH UP (near the lid flange). No separate back coil. Refrigerant tubing is bonded to the outer cabinet skin; on chest freezers this band commonly also carries the anti-sweat loop around the lid flange. Either way it is hot refrigerant tubing and must stay exposed to air. Back panel not separately checked (compressor recess is there).",
+      "why_it_matters": "The cabinet outer skin IS the heat-rejection surface. Covering the sides is not merely inefficient -- it raises head pressure on a compressor already fighting a low refrigerant charge (see factory_spec.measured_vs_spec), lengthening runs and risking an overload trip on a 32-year-old R12 system that is not economically repairable. This is the mechanism behind the nameplate's 'free-standing installation only' listing.",
+      "practical_limit": "Lid-top insulation is SAFE and beneficial (see docs/outage_procedures.md section 4.2: blanket over the lid hanging only a little past the seal, plus a ~14 in folding foam mattress on top). Cabinet SIDES and the rear compressor recess must stay clear. NOTE THE MARGIN IS THIN: the warm band begins just below where the blanket edge sits, so a careless re-drape after opening the lid can cover it without being obvious.",
+      "bears_on_replacement": "A replacement unit should be checked for the same property. A hot-wall design constrains how much insulation can ever be added, which matters because lid insulation measurably reduces heat load -- and this freezer's high duty is THE make-or-break number in docs/rotation_budget.md.",
+      "confidence": "high (direct touch test by Ron while running, 2026-09-04); condenser-vs-anti-sweat attribution of the warm band is NOT resolved and does not change the handling rule",
+      "source": "Ron, hand check during the 2026-09-03/04 outage"
+    },
     "notes": "REAL DEPLOYMENT LOAD, not a test piece. CORRECTION TO PRIOR EXPECTATION: the 5.0A nameplate is a locked-rotor-inclusive max, NOT a run-current predictor. Measured running current is ~0.72A -- consistent with the PROJECT_STATE compressor-class reasoning (~0.68A, dorm-fridge-like), and it CONTRADICTS the earlier '~1.5-2.5A running' note derived from nameplate. Current is set by compressor class, not box size. The anticipated 30-60A inrush / ACS712-clip scenario did NOT occur in the RMS-window capture (see inrush_peak_a caveat)."
   },
 
@@ -165,19 +174,44 @@
       "source": "mean of per-cycle ON-end minima (cut-out) and OFF-end maxima (cut-in) across ~26 cycles.",
       "notes": "~5F band. Full extremes ran to -7.7F / +0.8F on outlier cycles. Cycle period ~38 min, mean run ~27 min."
     },
+    "loading": {
+      "gel_ballast_lb": 42,
+      "detail": "About 6 x 7 lb gel packs live in the box as deliberate thermal ballast, in addition to the food. A further 2 x 7 lb packs are shuttled to the kitchen fridge's fresh-food compartment during outages (docs/outage_procedures.md 4.3).",
+      "why_it_is_recorded": "EVERY drift and pulldown figure in this file is a property of THIS BOX AS LOADED, not of the freezer itself. Water-based gel is roughly 1.0 BTU/lb-F liquid and carries 144 BTU/lb of latent heat frozen, so 42 lb is a large share of the box's thermal inertia. Anyone who removed the packs to make room would quietly change the warmup rate that the whole rotation plan in docs/rotation_budget.md depends on -- with no obvious symptom until the next outage.",
+      "arrangement_note": "2026-09-10: the packs were swapped end-for-end with the food (packs from the left end to the right). Watch whether the settled top/bottom gap returns to its 2-3 F baseline; if it lands elsewhere, the box's internal thermal structure changed and earlier CF readings need re-baselining before comparison.",
+      "confidence": "high on the count and weight (Ron); the effect on the rates is inferred, not separately measured",
+      "source": "Ron, 2026-09-10"
+    },
     "pulldown_rate_f_per_min": {
       "value": -0.075,
       "max_value": -0.261,
       "confidence": "high",
       "source": "freezer-air slope while compressor ON, per-run segments >60s.",
-      "notes": "WEAK. Mean cooling of only ~0.08F/min while running (best cycle ~0.26F/min). The compressor barely out-cools the cabinet heat leak -- this is WHY duty cycle is high despite low warmup. Consistent with a tired compressor and/or low R12 charge on a 1994 unit."
+      "notes": "WEAK. Mean cooling of only ~0.08F/min while running (best cycle ~0.26F/min). The compressor barely out-cools the cabinet heat leak -- this is WHY duty cycle is high despite low warmup. Consistent with a tired compressor and/or low R12 charge on a 1994 unit.",
+      "deployment_observation_2026_09_04": {
+        "value": -0.238,
+        "basis": "REAL OUTAGE, first CF block after ~5.4 h unpowered: 22.0 F at 12:54 -> 17.0 F at 13:21 (21 min running from a warm box).",
+        "interpretation": "NOT in conflict with the -0.075 F/min mean above. That mean was measured while cycling in the -5..0 F operating band, where compressor capacity is lowest and the leak nearly cancels it. This -0.238 F/min was taken with the box at 22 F, where capacity is far higher, and it lands right at the bench MAX of -0.261. The two agree: pulldown is strongly box-temperature-dependent and will slow sharply approaching 0 F. Treat -0.238 as an UPPER BOUND for warm-box recovery, not a constant.",
+        "caveat": "Lid insulation (identity.heat_rejection; docs/outage_procedures.md 4.2) was added DURING this window, so the segment straddles the change. At this dT pulldown is dominated by compressor capacity rather than cabinet leak, so the effect is probably small -- but this is NOT a clean pre/post number.",
+        "confidence": "medium (single 21-min segment, hand-read temps, insulation change mid-window)",
+        "source": "Ron, 2026-09-03/04 outage"
+      }
     },
     "warmup_rate_f_per_min": {
       "value": 0.184,
       "max_value": 0.213,
       "confidence": "high",
       "source": "freezer-air slope while compressor OFF, per-off segments >60s.",
-      "notes": "LOW, as the chest form factor predicted (~0.18F/min vs dorm fridge's ~1.1F/min) -- big thermal mass + lid-up geometry. This is the outage-tolerance advantage and it is genuinely good. Warm-bench measurement; real cold-ambient outage would warm even slower. Note box contents/loading affects this."
+      "notes": "LOW, as the chest form factor predicted (~0.18F/min vs dorm fridge's ~1.1F/min) -- big thermal mass + lid-up geometry. This is the outage-tolerance advantage and it is genuinely good. Warm-bench measurement; real cold-ambient outage would warm even slower. Note box contents/loading affects this.",
+      "deployment_observation_2026_09_04": {
+        "value": 0.038,
+        "basis": "REAL OUTAGE, CF unpowered while the kitchen fridge held the inverter: 18.0 F at 11:08 -> 22.0 F at 12:54 (1.77 h). UNINSULATED -- entirely before the lid blanket/mattress went on.",
+        "interpretation": "CONFIRMS the bench note above, emphatically. 0.038 F/min = 2.3 F/h in a real cool-house, food-loaded outage, versus the 0.184 F/min (11 F/h) warm-bench figure -- about 5x better. A rotation schedule planned against the bench number would be needlessly conservative. USE THIS ONE for outage planning; the bench figure is a lightly-loaded unit in a warm room.",
+        "cross_load_note": "For comparison, the kitchen fridge drifted at only 0.21 F/h over the same outage (43 -> 45 F over 9.5 h overnight). The CF loses ground ~11x faster, which is the whole basis of the rotation priority in docs/outage_procedures.md 4.1.",
+        "supersedes_for_planning": "Not the bench value itself (still valid for its conditions), but any DUTY or drift planning that assumed 0.18 F/min in an outage.",
+        "confidence": "medium (hand-read temps, two points, single interval)",
+        "source": "Ron, 2026-09-03/04 outage"
+      }
     }
   },
 
