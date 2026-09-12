@@ -33,8 +33,8 @@ from matplotlib.ticker import FuncFormatter, MaxNLocator
 
 DEFAULT_SPAN_H = 10.0
 MIN_SPAN_S = 600          # don't let the window shrink below 10 min
-TEMP_MIN_F, TEMP_MAX_F = -20, 70
-CUR_MIN_MA, CUR_MAX_MA = 0, 2000
+TEMP_MIN_F, TEMP_MAX_F = -20, 90
+CUR_MIN_MA, CUR_MAX_MA = 0, 2500
 
 
 def load_input(fh):
@@ -137,9 +137,12 @@ def main():
 
     fig, ax_l = plt.subplots(figsize=(12, 7))
     ax_r = ax_l.twinx()
+    # temps above current so the noisy current band can't hide the fridge temp
+    ax_l.set_zorder(ax_r.get_zorder() + 1)
+    ax_l.patch.set_visible(False)
     plt.subplots_adjust(bottom=0.30, top=0.93)
 
-    (ln_cur,) = ax_r.plot(t, d["cur"] * 1000.0, color="#1f77b4", lw=1.2, label="current (mA)")
+    (ln_cur,) = ax_r.plot(t, d["cur"] * 1000.0, color="#1f77b4", lw=0.8, alpha=0.7, label="current (mA)")
     (ln_t1,) = ax_l.plot(t, d["t1"], color="#ff7f0e", lw=1.4, label="t1_freezer_f")
     (ln_t2,) = ax_l.plot(t, d["t2"], color="#2ca02c", lw=1.4, label="t2_fridge_f")
 

@@ -13,8 +13,8 @@ from matplotlib.ticker import FormatStrFormatter
 #   Left  (temperature): -10..70 F,  step 4   -> 20 intervals (21 ticks)
 #   Right (current):     0..2000 mA, step 100 -> 20 intervals (21 ticks)
 # Current is stored in AMPS in the CSV; we plot it x1000 as mA for round labels.
-TEMP_MIN_F, TEMP_MAX_F, TEMP_STEP_F = -10, 70, 4
-CUR_MIN_MA, CUR_MAX_MA, CUR_STEP_MA = 0, 2000, 100
+TEMP_MIN_F, TEMP_MAX_F, TEMP_STEP_F = -10, 90, 4
+CUR_MIN_MA, CUR_MAX_MA, CUR_STEP_MA = 0, 2500, 100
 
 # 1. Parse command-line configuration arguments
 parser = argparse.ArgumentParser(description="Live streaming time-series chart from stdin.")
@@ -37,10 +37,15 @@ item6 = deque()
 # 2. Build the visual plot framework with static, crash-proof labels
 fig, ax_left = plt.subplots(figsize=(10, 6))
 ax_right = ax_left.twinx()  # Share x-axis for the alternate scale
+# Draw the temperature lines ABOVE the current line so the (noisy) current band
+# never hides the fridge temp: raise the temp axis and hide its patch so the
+# current axis still shows through underneath.
+ax_left.set_zorder(ax_right.get_zorder() + 1)
+ax_left.patch.set_visible(False)
 plt.subplots_adjust(bottom=0.15)
 
 # Statically bind labels immediately so the legend can NEVER fail or disappear
-line3, = ax_right.plot([], [], label="current (mA)", color="#1f77b4", linewidth=1.5)
+line3, = ax_right.plot([], [], label="current (mA)", color="#1f77b4", linewidth=0.8, alpha=0.7)
 line5, = ax_left.plot([], [], label="t1_freezer_f", color="#ff7f0e", linewidth=1.5)
 line6, = ax_left.plot([], [], label="t2_fridge_f", color="#2ca02c", linewidth=1.5)
 

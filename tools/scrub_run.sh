@@ -14,7 +14,7 @@
 set -euo pipefail
 
 HOST="ubuntu"                                   # ssh alias (same as watch_run.sh)
-REMOTE_DIR="Documents/Retirement Work/Engineer/inverter"
+REMOTE_DIR="Documents/RetirementWork/Engineer/inverter"
 STRIDE="${1:-10}"                                # keep every STRIDE-th data row (10 = ~1 Hz)
 REMOTE_GLOB="${2:-run_auto*.csv}"
 

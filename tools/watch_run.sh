@@ -12,7 +12,7 @@
 set -euo pipefail
 
 HOST="ubuntu"                                   # ssh alias (~/.ssh/config, mDNS -> no hardcoded IP)
-REMOTE_DIR="Documents/Retirement Work/Engineer/inverter"
+REMOTE_DIR="Documents/RetirementWork/Engineer/inverter"
 HOURS="${1:-4}"                                 # chart window in hours
 REMOTE_GLOB="${2:-run*.csv}"                     # which captures to consider (newest wins).
                                                 # default run*.csv = timestamped real captures,

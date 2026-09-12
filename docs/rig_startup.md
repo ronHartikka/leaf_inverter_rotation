@@ -26,7 +26,7 @@ Any hop can be the culprit. The phases below light them up in order.
 >
 > CONFIRM-THESE (fill in once, they rarely change):
 > - Exact command + working dir you launch `dual_logger.py` with on Ubuntu
-> - Where the Ubuntu CSV lives (watch_run.sh expects `~/Documents/Retirement Work/Engineer/inverter/<name>.csv`)
+> - Where the Ubuntu CSV lives (watch_run.sh expects `~/Documents/RetirementWork/Engineer/inverter/<name>.csv`)
 > - Mac→Ubuntu file sync method (to push the fixed sketch + dual_logger.py first)
 
 ---
@@ -66,7 +66,7 @@ proves nothing) and a hair-dryer/space-heater (trips the 3.5 A cutoff at 20 s).
    refuses an existing file):
    ```
    python3 dual_logger.py \
-       --out "$HOME/Documents/Retirement Work/Engineer/inverter/dryrun_$(date +%H%M).csv"
+       --out "$HOME/Documents/RetirementWork/Engineer/inverter/dryrun_$(date +%H%M).csv"
    ```
    Watch its console: it should print `# auto-detect current: /dev/ttyACMx …` and
    `# auto-detect temp: /dev/ttyUSBx …` (both devices found), then `# current: …`/`# temp: …`.
@@ -112,7 +112,7 @@ reset the Arduino again — it reopens the relay and restarts the 3-min hold-off
 3. **Ubuntu:** start a FRESH logger to the real capture file (must NOT already exist):
    ```
    python3 dual_logger.py \
-       --out "$HOME/Documents/Retirement Work/Engineer/inverter/kitchen_fridge_run2.csv"
+       --out "$HOME/Documents/RetirementWork/Engineer/inverter/kitchen_fridge_run2.csv"
    ```
    (`kitchen_fridge_run.csv` is the shakedown and is protected by no-clobber — hence `run2`.)
 4. **Mac:** set `REMOTE_CSV` → `kitchen_fridge_run2.csv` in `tools/watch_run.sh`, then
