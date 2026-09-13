@@ -519,6 +519,12 @@ the magnitude question; timing was already a tight fit. Detail below.
 - [ ] CONFIRM CHANNEL TARGETING: sketch banner says TARGET_CH=3 (Spare); confirm
       this is actually the fridge's physical socket (fridge is on the freezer's
       old socket from the prior characterization run) -- not yet verified.
+      STILL OPEN 2026-09-12, and it has already cost one capture (below). The
+      Arduino was checked this day and is still running characterize_load with
+      TARGET_CH=3. Socket assignment is NOT committed, so the practical form of
+      this item is: when the two-channel rig for the free-running both-loads
+      capture is wired, plug a known load into each outlet in turn and confirm
+      which sensor moves, BEFORE starting a long run.
 - [ ] IF the defrost hypothesis is right, the control logic needs to EXPECT and
       exclude the defrost-heater load from the compressor's overcurrent budget,
       or use a longer/higher threshold specifically during defrost windows
@@ -526,6 +532,26 @@ the magnitude question; timing was already a tight fit. Detail below.
 - [ ] Re-verify PCB fault LED code was NOT captured this event (power was already
       cycled before it was read) -- for a FUTURE event, read the LED BEFORE any
       power-cycle per the manual's explicit instruction.
+
+### kitchen_fridge_run2.csv IS SCRAP -- wrong channel [settled 2026-09-12]
+
+Do not re-analyze it and do not re-ask what it shows. `kitchen_fridge_run2.raw`
+(Jul 20-21, 23 h, 406,240 data lines) has a MAXIMUM current of 0.14 A over the whole
+file -- the sensor's noise floor, i.e. a channel with nothing on it. The fridge was
+cycling normally the whole time; the current channel simply was not watching the
+socket it was plugged into. That is this section's channel-targeting item showing up
+as a plausible-looking 23-hour file with no error and no gap.
+
+WHAT THIS DOES NOT AFFECT: `docs/rotation_budget.md` credits the kitchen fridge's
+~0.75 A / ~59-60% night duty to "the 2026-07-21/22 fresh capture". That is
+**run_20260721_135703** (Jul 21 13:57 -> Jul 24, 205 MB, no relay control), NOT
+kitchen_fridge_run2. It carries real current -- 2,673,800 rows, mean 0.689 A, max
+2.571 A -- so the budget figure is soundly sourced. Both files are in `data/` and on
+the Ubuntu box.
+
+LESSON TO CARRY INTO THE TWO-CHANNEL SKETCH: a mis-mapped channel is SILENT. It does
+not fault, it does not go stale, it logs a clean flat line at the noise floor for as
+long as you let it. Verify the map with a known load before every long capture.
 
 ### CAPTURE FILE VALIDITY
 kitchen_fridge_run.csv is valid current data ~15:00 (prior day) through 00:38:17.
@@ -542,9 +568,22 @@ amps field is trashed; isolated single lines). The old parser
 `^\s*(\d+),([\d.]+),?(\w*)` matched a PREFIX, so a garbled line like
 `38906058,0)<junk>` yielded amps="0" -> a FALSE 0.000 A. Confirmed from the .raw:
 adjacent lines are clean ~0.96 A; the corrupt one carries high/garbage bytes.
-Clusters as current levels off near setpoint -- HYPOTHESIS: inverter-compressor
-low-speed PWM noise coupling into that USB lead (the EMI path already flagged in the
-overcurrent write-up). `current_stale` does NOT catch these -- a corrupted line is
+Originally recorded as "clusters as current levels off near setpoint -- HYPOTHESIS:
+inverter-compressor low-speed PWM noise coupling into that USB lead". **THAT
+HYPOTHESIS IS CONTRADICTED BY THE DATA [2026-09-12, tools/cur_corruption_scan.py over
+4.1 M CUR lines / 480 h of fridge captures]. Do not act on it.** Measured corrupt
+lines per 1000 data lines, all files: compressor SLOW (0.75-0.90 A) **0.18** --
+the CLEANEST regime; compressor FAST (0.90-1.20 A) **4.83**; defrost heater
+(1.80-1.90 A, compressor OFF, resistive, no PWM at all) **4.48**; idle **0.54**.
+So it is not low speed, and it is not the compressor's drive switching.
+Two further findings: (1) the rate swings ~100x WITHIN a single capture with the
+cable untouched, arriving in episodes lasting hours -- so cable routing cannot be the
+trigger, though it may well set how strongly a disturbance couples; (2) the worst
+episode (08-01 20:00 -> 08-02 01:00, peaking 67 per 1000) begins in the same hour the
+lab notebook records the ESP32 WiFi node's first end-to-end transmission test. That
+is ONE hour of timing agreement, not proof -- the second-worst episode (08-07
+15:00-17:00) has no notebook entry near it, and the notebook does not say where that
+bench test was performed. UNRESOLVED. `current_stale` does NOT catch these -- a corrupted line is
 fresh, just wrong.
 - [x] Parser hardened [2026-08-01, dual_logger.py]: end-anchored, decimal-required
       `^\s*(\d+),(\d+\.\d+),(\w*)\s*$`. Corrupted lines are dropped (merge holds the
