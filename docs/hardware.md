@@ -19,6 +19,19 @@ Pin map (note the +1 shift off D1 to avoid the hardware-TX conflict):
 ACS712-20A on A1–A4 (2.5V zero offset, 100 mV/A, ratiometric). A1=Ch1 … A4=Ch4.
 Validated against clamp meter + resistive load.
 
+**BUYING MORE: get the breakout variant WITH MOUNTING HOLES.** The boards on hand have
+none, there is no room to drill any, and barely enough edge to grip — mounting one is
+the worst job on the rig. A drilled variant exists; buy that. Staying on the ACS712 for
+any NEW sensing point is otherwise the right call: same chain as the existing channels
+(100 mV/A, `firmware/shared/current_sense.h`, same auto-zero window), so new data is
+directly comparable to old with no cross-calibration run.
+
+Note also that the breakout is an IN-LINE part: the hot conductor must be cut and both
+ends landed on its screw terminals. If that is unwelcome at a given point, a split-core
+CT needs an AC line splitter to work at all (a clamp around an intact 2-conductor cord
+reads zero — hot and neutral cancel), and at ~0.7 A it needs a 5–10 A CT or a 10x tap,
+not a 30 A one.
+
 ## Pull-ups
 10k on each relay IN line to Arduino 5V, on a soldered daughterboard plugged into
 the D-1683 breakout header. Beep matrix verified (each D→5V ≈ 10k, D↔D ≈ 20k, no
