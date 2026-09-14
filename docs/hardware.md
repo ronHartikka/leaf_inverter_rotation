@@ -32,9 +32,44 @@ isolation is nominal — fine). Chassis 5V-to-Arduino path retired; USB brick is
 deployment supply.
 
 ## Temperature rig
-ESP32 + 2× Adafruit MAX31865 + **PT1000** RTDs, on a breadboard (intermittent —
-needs eventual rebuild onto soldered protoboard, but usable; ~1–2 faults per
-thousands of samples). Both this and the Arduino plug into one Ubuntu laptop.
+ESP32-WROOM-32 + 2× Adafruit MAX31865 + **PT1000** RTDs, on soldered perfboard.
+(The original breadboard build was intermittent — ~1–2 faults per thousands of
+samples — and was replaced; a second perfboard node was built 2026-09-14.)
+
+**Arduino IDE board selection: `WEMOS LOLIN32`.** Confirmed working by Ron
+2026-09-14 — flashed with that selection, node runs and answers to `cf.local`.
+Module is an ESP32-WROOM-32 (HiLetGo via Amazon), marked `ESP32D` / `WiFi+BT`
+`N4XX` (N4 = 4 MB flash). "ESP32 Dev Module" is the other generic candidate for a
+plain WROOM-32, but LOLIN32 is what has actually been used and works — don't change
+it without a reason.
+
+**Upload speed: lower it.** 921600 failed with a flash-comm / serial-noise error;
+lowering the upload speed and re-plugging USB fixed it (lab notebook 2026-08-01).
+
+**Flashing:** GPIO 2/12/15 are ESP32 strapping pins AND are used by the RTD software
+SPI, so the ESP32 is **socketed** — pull the module to flash, replug to run.
+**Power down (unplug USB) before unseating or seating.** Seating live risks damage;
+it once produced an ambiguous both-channels-zero fault that cost an hour
+(2026-09-04).
+
+**Pins:** RTD software SPI — CS **2** and **15**, DI 13, DO 12, CLK 14. (Which CS is
+channel 1 differs between sketches — take it from the sketch you are flashing, not
+from here.) OLED SSD1306 on I2C, addr `0x3c`, SDA 5, SCL 4 — independent of the SPI
+pins.
+
+**Supply must be solid, 1–2 A.** A cheap 500 mA USB adapter was CONFIRMED to corrupt
+MAX31865 reads (one channel dead at −403 °F, touch-sensitive, cross-channel
+interference) — it cleared instantly on laptop USB, so it was power, not wiring.
+WiFi-TX current spikes brown out a marginal supply even though the board peaks under
+1 A (lab notebook 2026-08-02).
+
+**Both channels reading zero = a SHARED line, not the probes.** The CS lines are
+separate, so one failed MAX31865 loses exactly one channel. Losing both points at
+DI 13 / DO 12 / CLK 14 or the 3.3 V / GND feeding both boards. Check seating first —
+a pin folded under instead of entering its hole is the classic cause.
+
+The Arduino plugs into the Ubuntu laptop over USB. Temp nodes are moving to WiFi
+(they answer to `<NODE_ID>.local`); see `docs/dual_logger_socket_ingest.md`.
 
 ## Power source / policy
 Nissan Leaf 12V → Renogy 1000W inverter. Leaf DC-DC converter ceils ~1.0–1.2 kW,
