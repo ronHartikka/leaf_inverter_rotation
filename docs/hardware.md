@@ -43,8 +43,11 @@ Module is an ESP32-WROOM-32 (HiLetGo via Amazon), marked `ESP32D` / `WiFi+BT`
 plain WROOM-32, but LOLIN32 is what has actually been used and works — don't change
 it without a reason.
 
-**Upload speed: lower it.** 921600 failed with a flash-comm / serial-noise error;
-lowering the upload speed and re-plugging USB fixed it (lab notebook 2026-08-01).
+**Upload speed: 921600**, and that is what is set — confirmed working on the node
+flashed 2026-09-14. FALLBACK, not a standing requirement: one upload failed at 921600
+with a flash-comm / serial-noise error, and lowering the speed plus re-plugging USB
+fixed it (lab notebook 2026-08-01). Try that if an upload fails; don't lower it
+pre-emptively.
 
 **Flashing:** GPIO 2/12/15 are ESP32 strapping pins AND are used by the RTD software
 SPI, so the ESP32 is **socketed** — pull the module to flash, replug to run.
