@@ -23,6 +23,33 @@ input for validating the whole furnace thermal model.
 
 ---
 
+## QUEUED — Jackery Explorer 300 Plus mock-up (Ron, 2026-09-14)
+
+Plug the Jackery into a WALL outlet, plug the kitchen fridge into the Jackery, and
+record. Grid power, no rig, no inverter — the simplest version of the buffer idea,
+to see how the pair behaves before it is wired into anything.
+
+- [ ] **Decide WHAT to record — open, to be settled with Ron** ("record ... what?
+      We'll talk about it soon"). Candidate observables are listed in
+      `docs/jackery_300_plus.md` section 7; none chosen.
+- [ ] Confirm from the manual which unit it is — 300 Plus or 300 v2. The v2 has a UPS
+      bypass (~20 ms) the Plus does not, which changes the design.
+- [ ] Then run it.
+
+WHY IT MATTERS: rig socket -> Jackery -> fridge gives the fridge an unbroken supply, so
+the rig's relay controls only whether the Jackery is CHARGING. That removes the ~7-min
+anti-short-cycle and the 4-s defrost-heater pulse from every rotation swap, and
+time-shifts the fridge's energy instead of reducing it. Full write-up, per-load verdicts
+(fridge yes, chest freezer no, furnace no), telemetry options and open questions:
+`docs/jackery_300_plus.md`.
+
+NOTE THE MEASUREMENT CONFLICT: behind a battery, the rig's current channel sees the
+Jackery charging, not the compressor. Either read the Jackery's own telemetry or add a
+sensing point between Jackery and fridge (that section 5) — otherwise the buffer and
+the free-running duty-cycle capture are mutually exclusive.
+
+---
+
 ## P0 — Temperature conversion correctness (DO NOT LOSE THIS)
 
 Discovered while reviewing `tools/dual_logger.py` for the fridge run. Real bug +
