@@ -1,5 +1,8 @@
 # Hardware — authoritative facts
 
+Board inventory, Arduino IDE board selections, the per-AVR-family relay startup
+order, and the sensing-node decision: `docs/mcu_inventory.md`.
+
 ## Board
 Arduino Uno WiFi Rev 2 (ATmega4809 / megaAVR core). FQBN `arduino:megaavr:uno2018`.
 
