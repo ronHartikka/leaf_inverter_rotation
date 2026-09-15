@@ -17,6 +17,9 @@ the correct order is **opposite** between them.
 | ESP32 boards w/ OLED | ESP32-WROOM-32 | 3.3 V | yes | `WEMOS LOLIN32` | RTD nodes (`cf.local`) |
 | NodeMCU, 30-pin | ESP8266 ESP-12E | 3.3 V | yes | NodeMCU 1.0 (ESP-12E Module) | spare radio |
 | **D1 mini, 16-pin** | **ESP8266 ESP-12F** | **3.3 V** | **yes** | **LOLIN(WEMOS) D1 R2 & mini** | **chosen: radio bridge** |
+| XIAO nRF52840 ×2 | nRF52840 (Cortex-M4F) | 3.3 V | **no — BLE/NFC only** | Seeed XIAO nRF52840 | house-temp candidate, §6 |
+| Parallax Board of Education | see §6 | — | no | — | bench platform at best, §6 |
+| Gemma M0 | ATSAMD21E18 | 3.3 V | no | Adafruit Gemma M0 | **no role here**, §6 |
 | ADS1115 | 16-bit I2C ADC | — | — | — | see §5 |
 
 `ESP8266MOD` is the silkscreen on the ESP-12E/F metal can, not a separate part.
@@ -143,3 +146,45 @@ electrically better than what the rig does.
 
 Keep it for a future node where resolution matters more than continuity with existing
 data.
+
+
+## 6. The rest of the bench — where they do and don't fit
+
+### XIAO nRF52840 (×2) — park them for HOUSE TEMPERATURE
+
+**No WiFi.** The nRF52840 is BLE and NFC only, so these cannot serve as the radio half
+of the sensing node. They are also 3.3 V; the SAADC can select VDD/4 as its reference,
+which would normally restore ratiometric behaviour, but that does not help here because
+the ACS712 needs its own 5 V rail — different rails, no cancellation.
+
+**Where they genuinely fit:** the house-temperature channel that
+`docs/todo.md`'s demand-aware dispatch section says the controller will need and that
+does not exist yet. That sensor has to sit in living space, which is exactly where a wall
+wart and a cable are unwelcome. Tiny, BLE, onboard battery charging — built for it.
+
+The receiving end is half-there already: the Ubuntu box has a Bluetooth dongle attached
+(`0a12:0001 Cambridge Silicon Radio`, seen 2026-09-12); **unconfirmed** whether that part
+is BLE-capable or Bluetooth-only.
+
+NOTE FOR THE SOCKET-INGEST WORK: a BLE source would be a second transport alongside TCP,
+which `docs/dual_logger_socket_ingest.md` does not currently anticipate. Not a problem —
+it would join the same merge on the same clock — but worth knowing before that code is
+written.
+
+### Parallax Board of Education — depends which one, neither is an MCU candidate
+
+**OPEN: which version is it?**
+
+- **Classic Board of Education** (BASIC Stamp 2 carrier) — out. The BS2 has no analog
+  input at all, no WiFi, and PBASIC is interpreted at a few thousand instructions per
+  second. Current sensing needs fast repeated sampling inside a ~100 ms RMS window; this
+  is orders of magnitude short. Still usable as a powered breadboard with the Stamp
+  module pulled.
+- **BOE Shield for Arduino** — not an MCU, a carrier: breadboard, power and servo headers
+  over an Uno-form-factor board. **Real value as the bench platform for building this
+  node** — ACS712, relay module and the divider wired on the breadboard with the Uno R3
+  underneath, before anything is committed to the Nano Every.
+
+### Gemma M0 — no role here
+
+Wearables board: three I/O pads, 3.3 V, no radio. Recorded so it is not reconsidered.
