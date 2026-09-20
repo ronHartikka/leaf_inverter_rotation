@@ -24,17 +24,25 @@ Any hop can be the culprit. The phases below light them up in order.
 > so ttyACM0<->1 / ttyUSB0<->1 renumbering no longer matters. `--list-ports` shows what's
 > attached; pass `--current-port`/`--temp-port` only to override.
 >
-> CONFIRM-THESE (fill in once, they rarely change):
-> - Exact command + working dir you launch `dual_logger.py` with on Ubuntu
-> - Where the Ubuntu CSV lives (watch_run.sh expects `~/Documents/RetirementWork/Engineer/inverter/<name>.csv`)
-> - Mac→Ubuntu file sync method (to push the fixed sketch + dual_logger.py first)
+> CONFIRMED 2026-09-20 (these rarely change):
+> - **Sync is `git pull`.** Ubuntu has a clone at
+>   `~/Documents/RetirementWork/Engineer/inverter/leaf_inverter_rotation`. Commit AND push
+>   on the Mac first — the clone pulls from GitHub, so an unpushed commit is invisible to
+>   it. The clone carries `firmware/` too, so sketch sources arrive the same way.
+>   (Until 2026-09-20 the tools were loose scp'd copies; those are deleted.)
+> - **Working dir is the DATA dir**, `~/Documents/RetirementWork/Engineer/inverter` — one
+>   level ABOVE the clone. Captures then land beside the old ones, stay out of git, and sit
+>   where `watch_run.sh` / `scrub_run.sh` already look (`REMOTE_DIR`).
+> - **Launch:** `cd ~/Documents/RetirementWork/Engineer/inverter` then
+>   `python3 leaf_inverter_rotation/tools/dual_logger.py --out <name>.csv`
 
 ---
 
 ## PHASE 0 — Pre-flight (nothing running, fridge still on the wall)
 
 On **Ubuntu**:
-1. Both devices present: `python3 dual_logger.py --list-ports` → expect to see the Arduino
+1. Both devices present (run from the data dir, as above):
+   `python3 leaf_inverter_rotation/tools/dual_logger.py --list-ports` → expect the Arduino
    (vid `2341`) and the ESP32's USB-UART bridge (vid `10c4`/`1a86`/`0403`). Auto-detect will
    pick them regardless of the ttyACM/ttyUSB number. If a device is missing here, fix that
    first — reseat the USB cable. (An *extra* USB-serial gadget makes auto-detect report
@@ -42,8 +50,8 @@ On **Ubuntu**:
 2. No port hog: close any Arduino IDE **Serial Monitor**, and check no old logger is holding
    the port: `pgrep -f dual_logger` (should print nothing).
 3. Fixed files are on this box: the **3.5 A** `characterize_load.ino` and the **fixed**
-   `dual_logger.py` (P0 + no-clobber). Sync from the Mac repo and, if the sketch changed,
-   re-upload it to the Arduino.
+   `dual_logger.py` (P0 + no-clobber). `git pull` in the clone — after pushing from the
+   Mac — and, if the sketch changed, re-upload it to the Arduino.
 
 On the **Mac**:
 4. SSH reaches the box *before* you depend on it: `ssh ubuntu true && echo SSH-OK`.
@@ -65,7 +73,7 @@ proves nothing) and a hair-dryer/space-heater (trips the 3.5 A cutoff at 20 s).
 2. **Ubuntu:** start the logger to a THROWAWAY file (unique name — the no-clobber guard
    refuses an existing file):
    ```
-   python3 dual_logger.py \
+   python3 leaf_inverter_rotation/tools/dual_logger.py \
        --out "$HOME/Documents/RetirementWork/Engineer/inverter/dryrun_$(date +%H%M).csv"
    ```
    Watch its console: it should print `# auto-detect current: /dev/ttyACMx …` and
@@ -111,7 +119,7 @@ reset the Arduino again — it reopens the relay and restarts the 3-min hold-off
    enforces the compressor lockout / head-pressure equalization; our hold-off only adds margin.)
 3. **Ubuntu:** start a FRESH logger to the real capture file (must NOT already exist):
    ```
-   python3 dual_logger.py \
+   python3 leaf_inverter_rotation/tools/dual_logger.py \
        --out "$HOME/Documents/RetirementWork/Engineer/inverter/kitchen_fridge_run2.csv"
    ```
    (`kitchen_fridge_run.csv` is the shakedown and is protected by no-clobber — hence `run2`.)
