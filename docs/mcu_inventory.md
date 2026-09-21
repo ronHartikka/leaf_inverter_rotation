@@ -202,6 +202,16 @@ missed it**, which is why the ADS1115 reads as a loose part in §5.
 **Not populated:** the ADS1115 itself.
 **Supply as built:** 9 V battery → 7805 → 5 V.
 
+**Board markings (Ron, 2026-09-21).** Module can: `ESP-32D` / `WiFi+BT` / `N4XX`.
+Carrier PCB: **`HW-724`**, printed front and back. The can marking matches the module
+already recorded in `docs/hardware.md` for the RTD node, so it is the same
+WROOM-32D-class part — **N4 = 4 MB flash, no PSRAM**, which is what makes GPIO16 free
+here (measured against the board, not inferred). `HW-724` is a generic carrier
+designator with no findable public documentation (searched 2026-09-21), so identify this
+board by the COMBINATION of can marking, `HW-724`, and its pin count. **The silkscreen
+on the board is the authority for pin labels** — not any online pinout diagram for a
+differently-named board.
+
 ### Wiring as recorded
 
 - **MCU GPIO 5, 4 and 16 go to the 3.3 V side of the level shifter.** 5 = SDA and
