@@ -207,8 +207,40 @@ ESP32 + OLED + ACS712 + 7805 on the lower, joined by header strips. The ACS712 i
 already wired in-line through its green screw terminal with external strain-relief
 clamps. Both perfboards carry printed coordinate grids (columns A–W, rows 04–19) — use
 those coordinates to record a wiring map, which will outlast tracing wires from photos.
-The BSS138 shifter could not be located in the photos; establish where it is before
-assuming the SDA/SCL/ALRT path exists.
+The level shifter **is installed**, socketed on the upper board (silkscreen "4
+Bi-Directional / Level Shifter", pins `GND A1 A2 A3 A4`), sitting directly below where
+the ADS1115's socket will go — check clearance before soldering that socket.
+
+### Interconnect: Dupont jumpers, and what to do about them
+
+The inter-board wiring is Dupont jumpers, which Ron flagged (2026-09-21) as working
+against the reason for moving to perfboard at all — `docs/hardware.md` records the
+breadboard RTD node at ~1–2 faults per thousands of samples, and crimped Dupont sockets
+are the same CLASS of failure, usually at a lower rate.
+
+Two of these connections are legitimately pluggable, so the answer is not "solder
+everything":
+
+- **The ESP32 must stay socketed.** `docs/hardware.md`: GPIO 2/12/15 are strapping pins
+  AND are used by the RTD software SPI, so the module is pulled to flash and replugged
+  to run.
+- **Two boards on standoffs need some separability**, or neither can be serviced.
+
+Sort the connections by **how a bad contact fails**, not by how many there are:
+
+- **I²C (SDA/SCL) and ALRT fail LOUDLY** — a NACK, a failed `ads.begin()`, or interrupts
+  that stop. You find out immediately.
+- **The ACS712 analog output fails SILENTLY.** An intermittent there throws no error; it
+  returns a WRONG NUMBER that looks like data. On a surge instrument that is precisely
+  the reading you would quote.
+
+**So if one thing changes, solder the ACS712 output and its ground reference.** Leave the
+module sockets; consider latching JST for the board-to-board run (a JST is already in use
+for the battery input).
+
+Then settle it with data rather than argument, the way the breadboard node's
+intermittency was quantified: assemble, run, wiggle the harness while logging, count
+faults.
 
 **CONFIDENCE: the board is not known to be finished.** Ron's recollection (2026-09-21)
 is that this was built on a breadboard and was part-way through being moved to perfboard
