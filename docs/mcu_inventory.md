@@ -224,10 +224,13 @@ differently-named board.
 ### Wiring as recorded
 
 - **MCU GPIO 5, 4 and 16 go to the 3.3 V side of the level shifter.** 5 = SDA and
-  4 = SCL match the SSD1306 convention already in `docs/hardware.md`. **16 is presumed
-  to be the ADS1115's ALERT/RDY — CONFIRM when populating.** If it is, use it: the
+  4 = SCL match the SSD1306 convention already in `docs/hardware.md`. **16 is the
+  ADS1115's ALERT/RDY — CONFIRMED 2026-09-21** from Ron's own sketches, which declare
+  `constexpr int READY_PIN = 16;` under the comment "Pin connected to the ALERT/RDY
+  signal for new sample notification" (`continuous_ADS1115`,
+  `running_statistics_socket_server_2`; see `docs/prior_art_sketches.md`). Use it: the
   conversion-ready interrupt paces sampling at the 860 SPS ceiling instead of polling
-  for it.
+  for it, and working ISR code for it already exists.
 - **GPIO16 is free on a WROOM-32** (no PSRAM — `docs/hardware.md` records these as
   marked `N4XX`, 4 MB flash) and the RTD sketch's pins (CS 2/15, DI 13, DO 12, CLK 14)
   do not touch it. **It is NOT free on a WROVER**, where GPIO16/17 serve PSRAM — do not
