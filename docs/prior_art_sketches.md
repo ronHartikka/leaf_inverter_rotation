@@ -92,3 +92,57 @@ to "bounded", and unlike a scope it can sit for days waiting for a cold start.
 `docs/wifi_bridge_build.md`: nothing here does best-AP-by-signal, WiFi event handlers,
 or BSSID logging, so the ESP32→ESP8266 translation of `docs/esp32_wifi_production.md`
 is still unanswered.
+
+## The board's purpose, and the one capture that survives
+
+Ron's recollection (2026-09-21): the §7 perfboard node was built **to measure surges**,
+with the furnace blower and the compressors as the targets. A large fan was measured
+with it.
+
+That capture still exists: `CoolTerm Capture (Untitled_0) 2025-03-09 11-46-54-590.txt`
+in the data dir, 5426 samples, opening with `Getting single-ended readings from
+AIN0..3` — the banner of `esp32_acs712_ads1115.ino`, dated the day before. Values are
+volts (the sketch prints `volts0` raw).
+
+| | volts | amps @ 100 mV/A |
+|---|---|---|
+| min | 1.47 | −8.0 |
+| max | 3.06 | +7.9 |
+| mean / median | 2.2698 / 2.27 | — |
+
+The chain worked: a symmetric ±8 A peak AC waveform, sampled on the waveform itself
+rather than as an RMS.
+
+### Three findings from it, all blocking for surge work
+
+**1. The measured zero is 2.27 V, not 2.5 V.** Every sketch computes
+`(volts0 - 2.5) / 0.100`, so everything that chain ever reported carries a systematic
+**−2.3 A** offset. The commented-out `2.325` sitting beside it was chasing the same
+thing. And 2.27 V is **below the 2.3–2.7 V auto-zero window** in
+`firmware/shared/current_sense.h` — lesson #4's sanity check would REJECT this sensor.
+Resolve that before quoting any number off this board; `inputStats.mean()` already
+computes a live zero and is being thrown away.
+
+**2. `GAIN_ONE` clips at ~16 A, which is the wrong ceiling for surge work.** At
+±4.096 V full scale against a 2.5 V zero, `(4.096 − 2.5) / 0.1 ≈ 16 A`. Lesson #10 says
+the chest freezer's true inrush is unmeasured and likely well above the method-limited
+~3.5 A, so GAIN_ONE risks truncating the very number the board exists to capture. Use
+**`GAIN_TWOTHIRDS`** (±6.144 V), which several sketches carry commented out.
+
+**TRAP — the gain comment is wrong in five sketches.** They read
+`ads.setGain(GAIN_ONE);  // 2/3x gain +/- 6.144V`. The comment describes a DIFFERENT
+gain than the code sets. Anyone reading it believes they have 6.144 V of range when
+they have 4.096.
+
+**3. The capture is free-running and unpaced** — `Serial.println` in a bare loop, no
+timestamps, no fixed rate. It gives amplitude only; a start transient cannot be told
+from running current in it. That is exactly what the interrupt-paced 860 SPS path in
+`continuous_ADS1115` fixes, and why the board should be finished on that path rather
+than this one.
+
+### Why the targets are the right ones
+
+`loads/furnace.json` carries **every** electrical value at `confidence: low`, cube-law
+derived, none measured — the blower is genuinely unmeasured rather than imprecise. And
+the freezer compressor is lesson #10's open item. Both are the gap this board was built
+for, and neither is served by the rig's 10 Hz / 100 ms-RMS chain.
