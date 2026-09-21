@@ -200,6 +200,15 @@ missed it**, which is why the ADS1115 reads as a loose part in §5.
 **Populated:** ESP32-WROOM-32 with the 0.96" OLED, ACS712, Adafruit 4-channel
 **BSS138** bi-directional level converter, 7805 regulator.
 **Not populated:** the ADS1115 itself.
+
+**CONFIDENCE: the board is not known to be finished.** Ron's recollection (2026-09-21)
+is that this was built on a breadboard and was part-way through being moved to perfboard
+when the work was interrupted — the same breadboard→perfboard motion `docs/hardware.md`
+records for the RTD node. Nothing in the repo records either version, so the parts list
+above is what is VISIBLE on the board, not a claim that the wiring is complete.
+**Continuity-check every connection against the intended schematic before powering it**;
+do not assume an absent connection is a design decision. The missing ADS1115 may be the
+point at which the work stopped rather than the only thing outstanding.
 **Supply as built:** 9 V battery → 7805 → 5 V.
 
 **Board markings (Ron, 2026-09-21).** Module can: `ESP-32D` / `WiFi+BT` / `N4XX`.
