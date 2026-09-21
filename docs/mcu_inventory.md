@@ -20,7 +20,7 @@ the correct order is **opposite** between them.
 | XIAO nRF52840 ×2 | nRF52840 (Cortex-M4F) | 3.3 V | **no — BLE/NFC only** | Seeed XIAO nRF52840 | house-temp candidate, §6 |
 | Parallax Board of Education | see §6 | — | no | — | bench platform at best, §6 |
 | Gemma M0 | ATSAMD21E18 | 3.3 V | no | Adafruit Gemma M0 | **no role here**, §6 |
-| ADS1115 | 16-bit I2C ADC | — | — | — | see §5 |
+| ADS1115 | 16-bit I2C ADC | — | — | — | see §5; a board is built for it, §7 |
 
 `ESP8266MOD` is the silkscreen on the ESP-12E/F metal can, not a separate part.
 
@@ -121,6 +121,9 @@ ratiometric cancellation the 5 V read gives for free, and `current_sense.h`'s ab
 auto-zero window would have to be re-derived. Also note: **on ESP32, ADC2 is unusable
 while WiFi is active** — ADC1 pins only (GPIO 32–39).
 
+This rejection is about a DIVIDER, and does not describe the assembled board in §7,
+which has none — it reads the ACS712 through an ADS1115 instead.
+
 **A metering smart plug** (watts/VA/PF over WiFi, no wiring) — not rejected, but it
 answers a different question. Roughly 1 Hz, so duty cycle and energy yes, transients no,
 and it is a different measurement chain from every existing number. Worth keeping in mind
@@ -145,7 +148,7 @@ electrically better than what the rig does.
   channels together.
 
 Keep it for a future node where resolution matters more than continuity with existing
-data.
+data. **That node already exists in hardware** — see §7.
 
 
 ## 6. The rest of the bench — where they do and don't fit
@@ -188,3 +191,59 @@ written.
 ### Gemma M0 — no role here
 
 Wearables board: three I/O pads, 3.3 V, no radio. Recorded so it is not reconsidered.
+
+## 7. Assembled node — ESP32 + ACS712 + ADS1115 on perfboard
+
+Recorded 2026-09-21 from Ron. **It was built before §1's bench sweep and that sweep
+missed it**, which is why the ADS1115 reads as a loose part in §5.
+
+**Populated:** ESP32-WROOM-32 with the 0.96" OLED, ACS712, Adafruit 4-channel
+**BSS138** bi-directional level converter, 7805 regulator.
+**Not populated:** the ADS1115 itself.
+**Supply as built:** 9 V battery → 7805 → 5 V.
+
+### Wiring as recorded
+
+- **MCU GPIO 5, 4 and 16 go to the 3.3 V side of the level shifter.** 5 = SDA and
+  4 = SCL match the SSD1306 convention already in `docs/hardware.md`. **16 is presumed
+  to be the ADS1115's ALERT/RDY — CONFIRM when populating.** If it is, use it: the
+  conversion-ready interrupt paces sampling at the 860 SPS ceiling instead of polling
+  for it.
+- **GPIO16 is free on a WROOM-32** (no PSRAM — `docs/hardware.md` records these as
+  marked `N4XX`, 4 MB flash) and the RTD sketch's pins (CS 2/15, DI 13, DO 12, CLK 14)
+  do not touch it. **It is NOT free on a WROVER**, where GPIO16/17 serve PSRAM — do not
+  port this pinout to one.
+- **One I²C bus, two voltage domains:** OLED on the 3.3 V segment, ADS1115 on the 5 V
+  segment, shifter bridging them. No address clash — SSD1306 `0x3c`, ADS1115 `0x48`
+  by default.
+- The shifter is the **Adafruit BSS138** 4-channel part, which is the I²C-appropriate
+  kind: open-drain with pull-ups on both sides. A push-pull auto-direction shifter
+  (TXB0104 class) would NOT be, on a bus that has its own pull-ups.
+
+### What it means for the decisions above
+
+- **§4 does not apply to it.** That rejection is about a fixed divider on the ACS712
+  output. This board has no divider; the ADS1115 reads the sensor directly, which is
+  the §5 differential-against-Vcc/2 arrangement — electrically better than what the rig
+  does.
+- **Powering the ADS1115 at 5 V is required, and is what the shifter exists for.** It
+  also buys headroom: at 100 mV/A the ACS712 rides at 2.5 V and swings up, so a 5 V rail
+  can follow a surge to ~25 A. Lesson #10 — the chest freezer's true inrush is
+  UNMEASURED and likely well above the method-limited ~3.5 A figure — is exactly why
+  that headroom should not be given away.
+- **§5's two limits stand unchanged:** the 860 SPS ceiling (~14 samples per 60 Hz cycle;
+  anything above ~430 Hz aliases into the RMS, and the fridge's current is not a clean
+  sine at PF ~0.55), and **no power factor** (the ADS1115 multiplexes, ~1.2 ms apart,
+  ~25° of phase error at 60 Hz). It is also a NEW chain and needs a cross-check against
+  ACS712 + Arduino before its numbers can join the existing dataset.
+
+### The supply is the weak point — fix before any capture
+
+9 V → 7805 → 5 V drops 4 V across the regulator, so it dissipates roughly as much as it
+delivers, and a 9 V alkaline holds only ~500 mAh. Against an ESP32 averaging well over
+100 mA with WiFi up, that is a couple of hours and a warm regulator.
+
+`docs/hardware.md` requires a **solid 1–2 A** supply for these nodes and records a
+CONFIRMED case of a weak one corrupting MAX31865 reads, because WiFi-TX current spikes
+brown out a marginal supply. Treat the 9 V battery as bench bring-up only; re-power from
+a proper USB supply before trusting any measurement off this board.
