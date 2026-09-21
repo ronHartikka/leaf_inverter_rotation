@@ -115,6 +115,13 @@ rather than as an RMS.
 
 ### Three findings from it, all blocking for surge work
 
+**PROVENANCE (Ron, 2026-09-21): this capture was probably made with the BREADBOARD
+version, which no longer exists.** The perfboard node "probably" carries the same
+wiring, but that is recollection, not verification — it cannot be used to validate the
+perfboard board. Practical consequence: **do not inherit the 2.27 V zero below.** A zero
+belongs to a specific sensor on a specific supply, not to a design. Re-measure it on the
+finished board. What survives is the *shape* of the finding, which is architectural.
+
 **1. The measured zero is 2.27 V, not 2.5 V.** Every sketch computes
 `(volts0 - 2.5) / 0.100`, so everything that chain ever reported carries a systematic
 **−2.3 A** offset. The commented-out `2.325` sitting beside it was chasing the same
@@ -133,6 +140,30 @@ the chest freezer's true inrush is unmeasured and likely well above the method-l
 `ads.setGain(GAIN_ONE);  // 2/3x gain +/- 6.144V`. The comment describes a DIFFERENT
 gain than the code sets. Anyone reading it believes they have 6.144 V of range when
 they have 4.096.
+
+**2b. The ADS1115 is NOT ratiometric, and that is the real lesson here.** The ACS712's
+zero is **Vcc/2 by design**, so a 2.27 V zero implies a sensor rail near **4.54 V** —
+230 mV is far outside ACS712 offset tolerance, so this reads as a sagging supply, not a
+quirky part. (Reasoned from the capture, not separately measured — mark it medium
+confidence until the finished board is checked.)
+
+The ADS1115 has an internal precision reference and its FSR settings are absolute volts,
+which is why `computeVolts()` returns volts rather than a ratio. The rig's Arduino gets
+supply cancellation **for free** because its ADC reference IS the 5 V rail the ACS712
+runs on, so sag moves sensor and reference together. An ADS1115 throws that away: a
+sagging sensor rail moves the zero AND the sensitivity, straight into the reading.
+
+Two consequences:
+
+- **§5's differential-against-Vcc/2 is not a refinement, it is the fix** — it cancels
+  supply drift in hardware and restores what this architecture otherwise loses. The
+  parked `readADC_Differential_2_3` code is the thing to revive.
+- **The 9 V → 7805 supply concern gets sharper.** A battery-fed regulator sagging under
+  ESP32 WiFi bursts does not merely risk corrupt reads; in single-ended mode it silently
+  moves the calibration.
+
+**CHECK ON THE BOARD:** how AIN2 and AIN3 are actually wired decides whether differential
+mode is available as built. Add it to the continuity check in `mcu_inventory.md` §7.
 
 **3. The capture is free-running and unpaced** — `Serial.println` in a bare loop, no
 timestamps, no fixed rate. It gives amplitude only; a start transient cannot be told
