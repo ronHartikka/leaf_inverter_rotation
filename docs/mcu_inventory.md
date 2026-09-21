@@ -199,7 +199,16 @@ missed it**, which is why the ADS1115 reads as a loose part in §5.
 
 **Populated:** ESP32-WROOM-32 with the 0.96" OLED, ACS712, Adafruit 4-channel
 **BSS138** bi-directional level converter, 7805 regulator.
-**Not populated:** the ADS1115 itself.
+**Not populated:** the ADS1115 itself — confirmed 2026-09-21: it is sitting on the upper
+board loose, neither fastened nor connected electrically.
+
+**It is a TWO-BOARD STACK on standoffs**, not one perfboard: ADS1115 on the upper board,
+ESP32 + OLED + ACS712 + 7805 on the lower, joined by header strips. The ACS712 is
+already wired in-line through its green screw terminal with external strain-relief
+clamps. Both perfboards carry printed coordinate grids (columns A–W, rows 04–19) — use
+those coordinates to record a wiring map, which will outlast tracing wires from photos.
+The BSS138 shifter could not be located in the photos; establish where it is before
+assuming the SDA/SCL/ALRT path exists.
 
 **CONFIDENCE: the board is not known to be finished.** Ron's recollection (2026-09-21)
 is that this was built on a breadboard and was part-way through being moved to perfboard
@@ -235,6 +244,24 @@ differently-named board.
   marked `N4XX`, 4 MB flash) and the RTD sketch's pins (CS 2/15, DI 13, DO 12, CLK 14)
   do not touch it. **It is NOT free on a WROVER**, where GPIO16/17 serve PSRAM — do not
   port this pinout to one.
+- **WHY THREE PINS GO TO THE SHIFTER — settled 2026-09-21 from photos of the board and
+  of the ADS1115 module.** The module is the generic blue "16Bit I2C ADC+PGA" board (NOT
+  Adafruit), carrying 10 kΩ (`103`) resistors on SCL, SDA, ADDR and **ALRT**. The
+  ADS1115's ALERT/RDY is **open-drain**, so it needs that pull-up to function — and the
+  pull-up goes to **VDD**. With the ADS1115 at 5 V, ALRT therefore idles at 5 V, which
+  must not be fed to a 3.3 V ESP32 input. So the three shifted lines are **SDA (5),
+  SCL (4) and ALRT (16)** — three channels of the four-channel BSS138 board. The design
+  is coherent, and it confirms the intent of a **5 V** ADS1115: at 3.3 V none of the
+  three would need shifting. ALERT/RDY being open-drain like I²C is also why a BSS138
+  shifter suits all three lines.
+- **Pull-up stacking, check when wiring.** The Adafruit shifter carries 10 kΩ on both
+  sides, so the 5 V segment sees 10 k ∥ 10 k ≈ 5 kΩ — healthy. The 3.3 V segment is the
+  one to watch: shifter, OLED module and ESP32 board pull-ups all land in parallel.
+  Measure bus-to-3.3 V once assembled; a few kΩ is fine, near 1 kΩ and the bus cannot be
+  pulled low cleanly.
+- **Address: expect `0x48`** (ADDR through 10 kΩ, almost certainly to GND) — but confirm
+  rather than assume. `i2c_scanner` (2024-12-16, `docs/prior_art_sketches.md`) reports
+  the real address alongside the OLED's `0x3c`.
 - **One I²C bus, two voltage domains:** OLED on the 3.3 V segment, ADS1115 on the 5 V
   segment, shifter bridging them. No address clash — SSD1306 `0x3c`, ADS1115 `0x48`
   by default.
