@@ -328,3 +328,75 @@ delivers, and a 9 V alkaline holds only ~500 mAh. Against an ESP32 averaging wel
 CONFIRMED case of a weak one corrupting MAX31865 reads, because WiFi-TX current spikes
 brown out a marginal supply. Treat the 9 V battery as bench bring-up only; re-power from
 a proper USB supply before trusting any measurement off this board.
+
+### Bring-up checklist for this board
+
+Staged deliberately: the digital path (VDD, GND, SCL, SDA, ADDR, ALRT) is wired before
+the analog inputs, so a failure at this stage has exactly one place to be — the shifter,
+its references, or a pull-up. Wire the analog side afterwards and a fault could be either
+half.
+
+**Arduino IDE: board `WEMOS LOLIN32`, upload speed 921600** (`docs/hardware.md`;
+confirmed on a module with these exact markings). Lower the speed only as a fallback if
+an upload fails.
+
+Unlike the RTD node, this ESP32 probably does NOT need unseating to flash. That node is
+pulled because GPIO 2/12/15 are strapping pins driven by its MAX31865 SPI. Here the bus
+is GPIO 4 and 5 — also strapping pins, but held HIGH by the I²C pull-ups, the benign
+state — and GPIO16 is not one. If an upload ever fails with a boot-mode error, suspect a
+device holding SDA low at reset.
+
+**Throughout: power down before seating or unseating anything.** `docs/hardware.md`
+records that seating live once produced an ambiguous both-channels-zero fault on the RTD
+node that cost an hour.
+
+#### Phase A — power off, both modules out
+
+- [ ] Common ground across both boards and all three sockets.
+- [ ] 5 V rail → GND and 3V3 → GND read hundreds of ohms to kΩ. Near zero is a short.
+- [ ] No continuity between 5 V and 3V3.
+- [ ] **7805 orientation:** pin 1 = IN from the 9 V JST, pin 2 = GND, pin 3 = OUT to the
+      5 V rail. Reversed in/out puts 9 V on everything.
+- [ ] **THE CRITICAL ONE — shifter socket.** The socket pin meeting `LV` must trace to
+      the ESP32's **3V3**; the one meeting `HV` to **5 V**. Transposed, the "3.3 V side"
+      carries 5 V straight into GPIO 16/5/4. This is the only mistake on this board that
+      kills the ESP32 instantly.
+- [ ] **ADS1115 socket:** VDD pin → 5 V rail, GND pin → ground, socket order matching the
+      module's `VDD GND SCL SDA ADDR ALRT A0 A1 A2 A3`. Mark pin 1 on the board — a
+      module seated backwards is the classic one-second kill.
+
+#### Phase B — power on, modules still out
+
+Use a bench or USB supply, **not the 9 V battery**.
+
+- [ ] 5 V at the ADS1115's VDD position, 0 V at its GND position.
+- [ ] **5 V at the shifter's HV position, 3.3 V at its LV position** — verified before the
+      shifter goes near the socket.
+
+#### Phase C — shifter in, ADC still out
+
+- [ ] Power off, seat, power on.
+- [ ] **GPIO 16, 5 and 4 read ~3.3 V**, pulled up through the shifter. **Reading 5 V on
+      any of them → power off immediately**, HV and LV are transposed.
+- [ ] HV-side channel pins read ~5 V.
+
+#### Phase D — ADC in
+
+- [ ] Power off, seat, power on.
+- [ ] **Measure VDD right at the ADS1115, idle and with WiFi transmitting.** This is also
+      the measurement that speaks to the 2.27 V zero (`docs/prior_art_sketches.md`): a
+      sagging rail is the leading explanation, and catching it here is before it can
+      contaminate anything.
+- [ ] `i2c_scanner` (2024-12-16) reports **`0x3c` and `0x48`**. Both present means the two
+      voltage domains share one working bus.
+- [ ] `ads.begin()` succeeds.
+- [ ] Tie **A0 to GND** temporarily and confirm a ~0 V reading — validates the conversion
+      chain against a known input rather than floating noise.
+- [ ] Flash `continuous_ADS1115` and confirm the ISR fires. ALERT/RDY only pulses on
+      conversion-ready if the comparator threshold registers are set for it, which that
+      sketch already does. This is the only way to verify the shifter's third channel.
+
+**Failure signature worth knowing:** if SDA and SCL are crossed at the ESP32, the scan
+finds NOTHING — not even the OLED at `0x3c` — because both devices share those pins. Fix
+a crossed pair in the WIRING, not in `Wire.begin()`: a per-board software exception would
+leave this node disagreeing with `docs/hardware.md` and every other node in the project.
