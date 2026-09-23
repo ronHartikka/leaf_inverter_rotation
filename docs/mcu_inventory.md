@@ -445,3 +445,55 @@ from USB? Both land near 4.8 V for different reasons (7805 tolerance is ~±4–5
 board's USB rail loses ~0.2 V across a series diode). They will NOT match in service,
 since the deployed board runs on the 7805. Another argument for measuring the zero at
 runtime rather than trusting any constant.
+
+#### Supply: the 7.5 V wall wart (2026-09-23) — UNREGULATED, and that matters
+
+Found a **7.5 V / 700 mA, UL-listed** wall wart whose connector already mates the 7805
+input connector on this board. Plugged in with USB disconnected, 5 V and 3.3 V appear
+where expected. It supersedes the 9 V battery as the deployment supply — no runtime
+limit, and it is UL listed.
+
+**It is unregulated, which inverts the heat expectation.** An unregulated wart is rated
+at its FULL-LOAD voltage: it delivers 7.5 V at 700 mA and rises as load falls. This board
+draws well under that, so the real input is likely **9–10 V or more**. An earlier note in
+conversation that "7.5 V dissipates ~38% less than the 9 V battery" assumed 7.5 V actual
+and is **wrong** — dissipation may be HIGHER than on the battery.
+
+The tradeoff therefore inverts:
+
+- **Dropout is no longer a concern.** At 9–10 V in there is ample headroom over the
+  7805's ~2 V requirement, even on ripple troughs.
+- **Heat is the concern.** At 9.5 V in and 250 mA the 7805 burns ~1.1 W; at 500 mA peaks,
+  over 2 W. A bare TO-220 with no heatsink runs very hot at that — fit a heatsink, or at
+  minimum check it by hand after ten minutes with WiFi up.
+
+**Ripple has a measurement consequence, not just a power one.** An unregulated supply
+carries 120 Hz ripple. The 7805 rejects most of it, so the 5 V rail stays reasonably
+clean — but whatever survives lands on the **ACS712's zero**, because that zero is Vcc/2
+and tracks its own supply.
+
+- **Single-ended** (against the ADS1115's absolute internal reference): the residue
+  appears as a **false current signal at 120 Hz**, immediately adjacent to the 60 Hz being
+  measured and awkward to separate.
+- **Differential** against a Vcc/2 divider: it cancels — both inputs move together and the
+  difference does not.
+
+So the differential arrangement Ron had working in Dec 2024 (`docs/prior_art_sketches.md`)
+is not merely "electrically better" in the abstract. On this supply it removes a specific
+artifact at a specific frequency.
+
+#### NEXT: three measurements, wall wart only, no USB
+
+Both supplies fight when USB and the wart are connected together — whichever is higher
+wins — so these must be taken on the wart alone. No serial is needed for any of them.
+
+- [ ] Voltage **at the 7805's input**, under real load (confirms how far above 7.5 V it
+      actually sits).
+- [ ] The **5 V rail** it produces. **This is the zero, ÷2** — and it closes the open
+      question above about whether the 4.81 V reading came from the 7805 or from the
+      ESP32 board's USB-fed `5V` pin. The deployed board runs on the wart, so this is the
+      number that counts.
+- [ ] 7805 **temperature** after ~10 minutes with WiFi active.
+
+Then solder the analog inputs: ACS712 `OUT` → A0 and A2, and the 1 kΩ/1 kΩ divider from
+the ACS712's own 5 V rail → A3.
