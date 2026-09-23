@@ -458,17 +458,10 @@ ratings. Plugged in with USB disconnected, 5 V and 3.3 V appear
 where expected. It supersedes the 9 V battery as the deployment supply — no runtime
 limit, and it is UL listed.
 
-**UNVERIFIED — regulated or unregulated?** Recorded as unregulated on Ron's word
-(2026-09-23); the basis was not stated, and everything in the rest of this section
-depends on it. The decisive check is the **no-load output voltage**: an unregulated unit
-reads well above its rating with nothing attached (typically 9–11 V for a 7.5 V part),
-while a regulated/switching one reads ~7.5 V regardless. Weight is a secondary tell —
-transformer units are heavy, switchers light. **If it turns out to be REGULATED, both the
-heat inversion and the 120 Hz ripple consequence below cease to apply**: a switcher's
-noise is high-frequency and nowhere near 60 Hz, and a true 7.5 V input really does
-dissipate less than the 9 V battery did.
+**UNREGULATED — CONFIRMED 2026-09-23: 11.7 V open circuit** against a 7.5 V rating, a
+56% rise, which is textbook transformer-plus-rectifier behaviour.
 
-**If unregulated, it inverts the heat expectation.** An unregulated wart is rated
+**This inverts the heat expectation.** An unregulated wart is rated
 at its FULL-LOAD voltage: it delivers 7.5 V at 700 mA and rises as load falls. This board
 draws well under that, so the real input is likely **9–10 V or more**. An earlier note in
 conversation that "7.5 V dissipates ~38% less than the 9 V battery" assumed 7.5 V actual
@@ -478,9 +471,18 @@ The tradeoff therefore inverts:
 
 - **Dropout is no longer a concern.** At 9–10 V in there is ample headroom over the
   7805's ~2 V requirement, even on ripple troughs.
-- **Heat is the concern.** At 9.5 V in and 250 mA the 7805 burns ~1.1 W; at 500 mA peaks,
-  over 2 W. A bare TO-220 with no heatsink runs very hot at that — fit a heatsink, or at
-  minimum check it by hand after ten minutes with WiFi up.
+- **Heat is the concern, and a heatsink is effectively REQUIRED.** With 11.7 V open
+  circuit, the input at this board's light load will sit near **9.5–10.5 V**, so the 7805
+  burns roughly `(10 − 5) × I`: **~1.25 W at 250 mA**, **over 2 W on WiFi peaks**. A bare
+  TO-220 at 1.25 W runs ~75 °C above ambient; at 2 W it heads toward the regulator's own
+  thermal shutdown. This is MORE dissipation than the 9 V battery produced.
+
+**A better wall wart is probably already in the pile.** Ron has ~20 others, all lower
+voltage. Now that open-circuit voltage is the measurable, the selection rule is:
+**take the LOWEST open-circuit voltage that still reads about 8.5 V or more.** That keeps
+the 7805 above its ~7 V input requirement under load while wasting the least as heat. A
+6 V unregulated unit would read ~9–9.5 V open circuit and land near 7.5–8 V under this
+load — ideal, and roughly half the dissipation of the 7.5 V one.
 
 **Ripple has a measurement consequence, not just a power one.** An unregulated supply
 carries 120 Hz ripple. The 7805 rejects most of it, so the 5 V rail stays reasonably
@@ -493,9 +495,21 @@ and tracks its own supply.
 - **Differential** against a Vcc/2 divider: it cancels — both inputs move together and the
   difference does not.
 
-So the differential arrangement Ron had working in Dec 2024 (`docs/prior_art_sketches.md`)
-is not merely "electrically better" in the abstract. On this supply it removes a specific
-artifact at a specific frequency.
+**But quantified, the 120 Hz term is SMALL — this was overstated when first written.**
+The 7805 rejects 120 Hz by 60–70 dB, so roughly a millivolt reaches the 5 V rail, giving
+~0.5 mV on the zero — about **5 mA** of apparent current. Real, but minor against a 0.7 A
+signal.
+
+**The supply effect that actually matters is WiFi-burst rail movement.** A few hundred
+milliamps of transient against the regulator's output impedance can dip the rail by
+~15 mV, moving the zero ~7.5 mV — on the order of **75 mA** of apparent current,
+correlated with transmission rather than with line frequency. That is an order of
+magnitude worse than the ripple.
+
+Differential against a Vcc/2 divider cancels both, which is the real case for the
+arrangement Ron had working in Dec 2024 (`docs/prior_art_sketches.md`) — not the 120 Hz
+artifact, but the burst-correlated one. (Estimates, not measurements: confirm by logging
+with the radio idle and then transmitting.)
 
 #### NEXT: three measurements, wall wart only, no USB
 
