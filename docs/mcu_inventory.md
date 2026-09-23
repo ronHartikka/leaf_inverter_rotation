@@ -400,3 +400,48 @@ Use a bench or USB supply, **not the 9 V battery**.
 finds NOTHING — not even the OLED at `0x3c` — because both devices share those pins. Fix
 a crossed pair in the WIRING, not in `Wire.begin()`: a per-board software exception would
 leave this node disagreeing with `docs/hardware.md` and every other node in the project.
+
+#### Bring-up RESULTS — 2026-09-23
+
+All digital checks passed; the analog inputs are still unwired.
+
+| Check | Result |
+|---|---|
+| `i2c_scanner` | `0x3C` (OLED) **and** `0x48` (ADS1115) |
+| ALRT → GPIO16 | interrupt fires; `continuous_ADS1115` prints |
+| A0 tied to GND | 0.00 V |
+| A0 tied to VDD, `GAIN_ONE` | 4.10 V — saturation, as expected |
+| A0 tied to VDD, `GAIN_TWOTHIRDS` | **4.8 V** |
+| Same point, meter | **4.81 V** |
+
+**The I²C scan finding both addresses proves more than connectivity.** An ACK requires
+the SLAVE to pull SDA low and that pull to return through the shifter, so channels 2 and
+3 are verified **bidirectional**, not merely outbound. And `continuous_ADS1115` prints
+only when its ISR sets `new_data`, so output at all is proof that channel 1 (ALRT) works.
+
+**The ADS1115's internal reference is trustworthy** — 4.8 V measured against 4.81 V on
+the meter, ~0.2%. That could not be assumed: this part is NOT ratiometric, so unlike the
+rig's Arduino chain its accuracy rests entirely on that reference.
+
+Note what the saturation test did NOT prove. An over-range input pins the code at full
+scale and `computeVolts()` multiplies by the FSR constant, so 4.10 V appears whether or
+not the reference is accurate. It confirmed the FSR constant only. The meter did the rest.
+
+#### CONSEQUENCE: the rail is 4.81 V, so the zero is 2.405 V
+
+- **Expected ACS712 zero = Vcc/2 = 2.405 V**, not 2.5 V.
+- **Hard-coding 2.5 V costs ~0.95 A of systematic offset** — larger than the ~0.7 A
+  running current it would be measuring. Every prior sketch does exactly this.
+- **2.405 V passes** the 2.3–2.7 V auto-zero window in `firmware/shared/current_sense.h`.
+  The 2.27 V implied by the 2025 capture would have been rejected.
+- This CORROBORATES rather than contradicts that old capture: 2.27 V implied a ~4.54 V
+  rail on the breadboard build, this one measures 4.81 V. Different build, different
+  drop, same underlying fact — **the rail is not 5.00 V and 2.5 V is the wrong
+  constant on this hardware.** Take the zero from a live measurement; `RunningStatistics`
+  `mean()` already computes it.
+
+**OPEN: which supply was this measured on** — the 7805, or the ESP32 board's `5V` pin fed
+from USB? Both land near 4.8 V for different reasons (7805 tolerance is ~±4–5%; the dev
+board's USB rail loses ~0.2 V across a series diode). They will NOT match in service,
+since the deployed board runs on the 7805. Another argument for measuring the zero at
+runtime rather than trusting any constant.
