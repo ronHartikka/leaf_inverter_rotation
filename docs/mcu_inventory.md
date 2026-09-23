@@ -511,6 +511,33 @@ arrangement Ron had working in Dec 2024 (`docs/prior_art_sketches.md`) — not t
 artifact, but the burst-correlated one. (Estimates, not measurements: confirm by logging
 with the radio idle and then transmitting.)
 
+#### Supplies on hand, and what to bring up on (2026-09-23)
+
+- **7.5 V / 700 mA unregulated wart** (above) — the only wall wart whose connector fits
+  and whose voltage clears the 7805's ~7 V requirement. Ron has ~20 others; **none are
+  candidates**, all being lower voltage.
+- **19.5 V Dell laptop supplies — NOT usable through the 7805.** `(19.5 − 5) × I` is
+  ~3.6 W at 250 mA and over 7 W on peaks: not a heatsink problem but a thermally
+  impossible one for a TO-220. Only useful ahead of a switching converter, which is
+  hardware this build does not need.
+- **Two lab supplies — use one of these for bench bring-up.** Feed the 7805's input at
+  7.5 V. Three benefits beyond heat: it is regulated (removing both the 120 Hz ripple and
+  the burst-correlated rail movement as confounds while characterising the sensor), it is
+  current-limited (set ~400 mA before first power-up on freshly soldered analog wiring, so
+  a short reads as a limit indication rather than damage), and **it displays the actual
+  current draw** — a number every heat estimate here has been guessing at.
+
+**Deployment stays a separate decision**; the wart plus a heatsink remains viable.
+Whatever it ends up being sets the zero, since the zero is Vcc/2 — so bring-up on the lab
+supply and deployment on the wart will have DIFFERENT zeros. Harmless provided the
+firmware takes its zero from a live measurement, which is exactly what `mean()` computes
+and what every prior sketch throws away.
+
+**A free experiment comes with owning both:** log the same steady load on the lab supply
+and then on the wart, and compare. That turns the ~75 mA burst-correlated error from an
+estimate into a measurement, and is the cleanest way to decide whether differential mode
+earns its extra wiring on this board.
+
 #### NEXT: three measurements, wall wart only, no USB
 
 Both supplies fight when USB and the wart are connected together — whichever is higher
