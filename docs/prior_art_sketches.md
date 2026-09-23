@@ -62,16 +62,56 @@ whatever tutorial these started as. Nothing to carry over.
 
 ## Flags
 
-**The differential arrangement was written, then parked.**
-`readADC_Differential_2_3` appears in four sketches, but
-`running_statistics_socket_server_2` runs `ADS1X15_REG_CONFIG_MUX_SINGLE_0` with the
-DIFF_2_3 line commented out. So §5's "electrically better than what the rig does"
-arrangement exists in code but is not what runs. Decide it deliberately rather than
-inheriting a comment-out.
+**The differential arrangement WORKED — it was not merely written.** Corrected
+2026-09-23 from Ron's contemporaneous notes (`notes.odt` / `notes2.odt` / `Untitled
+6.odt` in the data dir, same text in all three):
+
+> got `continuous_ADS1115.ino` working at maximum rate: `RATE_ADS1115_860SPS`,
+> configuration: `ADS1X15_REG_CONFIG_MUX_DIFF_2_3`, mode: `CONTINUOUS`
+> attached signal generator 60 Hz, 0 VDC, 1VAC (rms). Got reasonable data to serial
+> monitor
+
+So differential AIN2/AIN3 at 860 SPS continuous ran and was **validated against a known
+reference** in Dec 2024. What it validated is the ADC and the differential path: 0 VDC
+offset means the generator drove the ADC inputs directly, NOT through the ACS712, so the
+sensor-to-ADC arrangement is still unproven.
+
+`running_statistics_socket_server_2` (Feb 2025) nonetheless runs
+`ADS1X15_REG_CONFIG_MUX_SINGLE_0` with the DIFF_2_3 line commented out. **Why it was
+switched back to single-ended is unrecorded.** Decide it deliberately; do not read the
+comment-out as evidence that differential failed.
+
+**The signal generator is a reusable asset here.** A known 60 Hz amplitude is exactly
+what the §5 cross-calibration against the ACS712 + Arduino chain needs.
 
 **Single-ended reads use a hard-coded 2.5 V zero**, with a commented-out `2.325` from
 some earlier bench session sitting next to it — the drift lesson #4's auto-zero window
 exists to catch.
+
+## The intended architecture: statistics per POWER CYCLE
+
+The same notes record the design Ron was working toward in Jan 2025, and it is better
+than what shipped:
+
+> But to measure at say 600 sps — ten times in each 60 Hz cycle — I don't want
+> continuous? ... If 60 Hz sample, output stats for this 60 Hz cycle, reset stats
+
+> Goal for 2 Jan 2025: ... sample window for RunningStatistics is **one power cycle**, if
+> possible
+
+One RMS value per 60 Hz cycle, statistics reset every cycle. That yields the **envelope**
+of a start transient cycle by cycle, which is what surge work needs.
+
+What actually shipped does the opposite. `running_statistics_socket_server_2` sets
+`windowLength = 10/testFrequency` — a ~167 ms window smearing about ten cycles together,
+which is precisely what hides a transient. The window values drift across the
+collection: 0.8 s in `ACS712_Code_3`, 0.033 s in `rms_ac_with_filters_master`, 0.167 s in
+the newest.
+
+**The 50/60 Hz trap, already caught by Ron in the notes:** `ACS712_Code_3` ships
+`testFrequency = 50` — a European default — and his note flags it, "Power line frequency
+(not in USA, though)". Any sketch inheriting that constant computes its window against
+the wrong line frequency.
 
 ## An opening on lesson #10
 
