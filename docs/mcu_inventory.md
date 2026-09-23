@@ -449,11 +449,26 @@ runtime rather than trusting any constant.
 #### Supply: the 7.5 V wall wart (2026-09-23) — UNREGULATED, and that matters
 
 Found a **7.5 V / 700 mA, UL-listed** wall wart whose connector already mates the 7805
-input connector on this board. Plugged in with USB disconnected, 5 V and 3.3 V appear
+input connector on this board. Label: **`7.5VDC 700mA`**, model **`PSA12D7P5P7-A`**,
+"ITE POWER SUPPLY", UL, made in Taiwan. It is sold as a Belkin router replacement and is
+widely available. **`DC` output is confirmed from the label** — worth having checked,
+because some retail listings for this model describe it as AC/AC, and an AC-output wart
+feeding a 7805 would drive the regulator's input negative every half-cycle, outside its
+ratings. Plugged in with USB disconnected, 5 V and 3.3 V appear
 where expected. It supersedes the 9 V battery as the deployment supply — no runtime
 limit, and it is UL listed.
 
-**It is unregulated, which inverts the heat expectation.** An unregulated wart is rated
+**UNVERIFIED — regulated or unregulated?** Recorded as unregulated on Ron's word
+(2026-09-23); the basis was not stated, and everything in the rest of this section
+depends on it. The decisive check is the **no-load output voltage**: an unregulated unit
+reads well above its rating with nothing attached (typically 9–11 V for a 7.5 V part),
+while a regulated/switching one reads ~7.5 V regardless. Weight is a secondary tell —
+transformer units are heavy, switchers light. **If it turns out to be REGULATED, both the
+heat inversion and the 120 Hz ripple consequence below cease to apply**: a switcher's
+noise is high-frequency and nowhere near 60 Hz, and a true 7.5 V input really does
+dissipate less than the 9 V battery did.
+
+**If unregulated, it inverts the heat expectation.** An unregulated wart is rated
 at its FULL-LOAD voltage: it delivers 7.5 V at 700 mA and rises as load falls. This board
 draws well under that, so the real input is likely **9–10 V or more**. An earlier note in
 conversation that "7.5 V dissipates ~38% less than the 9 V battery" assumed 7.5 V actual
