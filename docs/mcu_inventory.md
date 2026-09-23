@@ -511,7 +511,22 @@ arrangement Ron had working in Dec 2024 (`docs/prior_art_sketches.md`) — not t
 artifact, but the burst-correlated one. (Estimates, not measurements: confirm by logging
 with the radio idle and then transmitting.)
 
-#### Supplies on hand, and what to bring up on (2026-09-23)
+#### DECIDED 2026-09-23: power it from a lab supply, full stop
+
+Ron expects to use this board **a few times**, not to deploy it, so it runs from a lab
+supply — 7.5 V into the JST, ~400 mA limit for the first power-up after the analog inputs
+are soldered. **That closes the whole supply question below**: no wall wart, no barrel-to-
+JST adapter, no center-negative polarity hazard, no reverse-protection diode, no 120 Hz
+ripple, and the regulator's heat is supervised rather than unattended. The material below
+is kept only in case the board is ever deployed unattended.
+
+Consequences worth keeping: the rail still sets the zero (Vcc/2), so **measure it each
+session** — with one supply that is a single number. And having the lab supply present
+enables a measurement the docs currently only estimate: **sweep the input voltage and
+watch where the 5 V rail begins to sag**, which gives the real dropout margin and the
+zero's sensitivity to supply directly.
+
+#### Supplies on hand — retained for a possible unattended deployment (2026-09-23)
 
 - **7.5 V / 700 mA unregulated wart** (above) — the only wall wart whose connector fits
   and whose voltage clears the 7805's ~7 V requirement. Ron has ~20 others; **none are
