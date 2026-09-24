@@ -568,3 +568,83 @@ wins — so these must be taken on the wart alone. No serial is needed for any o
 
 Then solder the analog inputs: ACS712 `OUT` → A0 and A2, and the 1 kΩ/1 kΩ divider from
 the ACS712's own 5 V rail → A3.
+
+#### Analog wired, and CALIBRATED — 2026-09-24
+
+**As built:** ACS712 `OUT` → **A0** and **A2**; 1 kΩ/1 kΩ divider from the **7805's
+output** → **A3**, with 0.1 µF from A3 to ground. Sketch: `continuous_ADS1115`,
+`MUX_DIFF_2_3` continuous at `RATE_ADS1115_860SPS`, **`GAIN_TWO`** (±2.048 V ⇒ ±20.5 A,
+matching the ACS712-20A's own span, 0.625 mA/bit).
+
+Note the divider is fed from the 7805's output rather than the sensor's own `VCC` pin.
+That leaves the IR drop in the sensor's supply wire uncancelled — a few mA through a
+short jumper, well under a millivolt. Not worth rewiring.
+
+**A first attempt put the divider on the ACS712's OUTPUT instead of the supply.** That
+gives `A2 − A3 = V_OUT/2 = Vcc/4 + 0.05·I` — half sensitivity AND no cancellation, worse
+than single-ended on both counts. The reference must be a fixed fraction of the SUPPLY,
+not of the signal. Symptom if it recurs: A3 reads ~1.20 V instead of ~2.40 V.
+
+| Current | Mean differential | Notes |
+|---|---|---|
+| 0 A | **12.24 mV** | σ 0.35 mV ⇒ 3.5 mA |
+| 0.500 A | **59.38 mV** | σ 0.32 mV ⇒ 3.4 mA |
+| 2.00 A (run 1) | **211.95 mV** | Vcc 4.81 V |
+| 2.00 A (run 2) | **212.71 mV** | Vcc 4.83 V |
+
+**Noise is ~3.4 mA RMS and independent of signal level** — 0.5% of a 0.7 A running
+current, negligible for surge work.
+
+**The residual zero is 12.24 mV (122 mA), stable.** Larger than the ACS712 alone would
+give, so divider resistor tolerance is likely most of it. It subtracts out; it does not
+need tuning away.
+
+##### It is NOT one straight line — calibrate over the working range
+
+| Segment | Implied slope |
+|---|---|
+| 0 → 0.5 A | 94.3 mV/A |
+| 0.5 → 2.0 A | **101.7 mV/A** |
+| 0 → 2.0 A | 99.9 mV/A |
+
+A two-point fit anchored at 0 and 0.5 A mispredicts 2.00 A by **+11.1 mV (5.6%)**. The
+cause is range, not a fault: on a **±20 A** part, offset and nonlinearity are referred to
+FULL SCALE. 11 mV is 0.55% of the 2 V span — unremarkable — but 5.6% of a 2 A reading and
+22% of a 0.5 A one. **Working in the bottom 10% of a sensor's range is where its error
+budget is proportionally largest.** For surge work (amps to tens of amps) the 101.7 mV/A
+segment is the relevant one. Take more points at 5 A and 10 A and fit over the range
+actually used.
+
+##### CONFIRMED: sensitivity is ratiometric to Vcc, and differential does NOT cancel it
+
+The two 2.00 A runs differed by 0.76 mV — ~7σ of the sample means, so a real shift. It
+was **predicted before measuring** that Vcc must have risen ~0.36% to 4.83 V. The meter
+then read **4.83 V**.
+
+Normalising both runs to a common rail:
+
+| | signal | corrected to 5.00 V |
+|---|---|---|
+| run 1 @ 4.81 V | 199.71 mV | 207.60 mV |
+| run 2 @ 4.83 V | 200.42 mV | 207.47 mV |
+
+**0.76 mV of drift becomes 0.13 mV**, inside the noise of the means. The supply explains
+essentially all of it.
+
+**Differential against Vcc/2 cancels the ZERO's supply dependence but leaves the SCALE
+exposed**, because the ACS712's volts-per-amp tracks Vcc just as its zero does.
+
+> **FIRMWARE RULE: sample Vcc on A1 (still free), scale the raw reading by
+> `Vcc_cal / Vcc`, then apply the calibration.** Both the offset and the slope ride on the
+> rail, so one correction handles both.
+
+That is the same mechanism behind the hard-coded 2.5 V being wrong, behind the 2.27 V
+implied by the 2025 capture, and behind the drift between these two runs. One cause,
+three symptoms.
+
+##### Caveat on all of the above
+
+`continuous_ADS1115` has **no WiFi code**. Every number here is a quiet baseline with the
+radio silent. The supply-rejection question — the estimated ~75 mA of burst-correlated
+error that differential mode is supposed to remove — is still **untested**, and needs a
+sketch that transmits while sampling.
