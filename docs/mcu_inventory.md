@@ -648,3 +648,45 @@ three symptoms.
 radio silent. The supply-rejection question — the estimated ~75 mA of burst-correlated
 error that differential mode is supposed to remove — is still **untested**, and needs a
 sketch that transmits while sampling.
+
+#### Per-cycle firmware running, and the drift it exposed — 2026-09-25
+
+`firmware/esp32_ads1115_cycle_stats/` emits one line per 60 Hz cycle:
+`t_ms,n,mean_v,dc_a,rms_a,pk_a`. First run confirmed the mechanics:
+
+- **Window timing exact** — deltas of 16/17/17 ms, averaging 16.67 ms, no drift.
+- **`n` alternates 14/15**, matching 860/60 = 14.33 samples per cycle. No samples missed.
+- **DC/AC separation works as intended.** At 2.00 A DC the current landed entirely in
+  `dc_a` and `rms_a` stayed at the noise floor.
+
+##### The offset drifts; the sensitivity does not
+
+After ~92 minutes running, the zero read **12.19 mV** against the **13.08 mV** in the
+calibration constant — a drift of 0.89 mV, which is precisely the −9 mA `dc_a` then
+reports at zero current.
+
+Comparing that against the same session's 2.00 A point identifies WHICH parameter moved:
+
+- **Not ratiometric.** Pure Vcc scaling would need k = 0.932 to explain the zero but
+  k = 0.994 to explain the 2 A point. They disagree badly, so the rail is not the cause
+  this time — unlike the 0.76 mV shift on 2026-09-24, which the rail explained completely.
+- **An offset shift of −0.89 mV with the slope essentially unchanged fits both**, implying
+  100.31 mV/A against the calibrated 100.55 — a difference of **0.24%**.
+
+So sensitivity is stable to a quarter of a percent over an hour and a half, and what moves
+is the offset. Normal thermal behaviour for an ACS712, probably with some divider
+mismatch drift alongside. The noise floor was also unchanged at 3.2 mA after that warm-up.
+
+##### CONSEQUENCE: the AC path is immune, and that is the whole point
+
+`rms_a` read **0.0032 at zero current and 0.0031 at 2.00 A DC** — identical, because RMS
+and peak are computed about the **live per-cycle mean**, not against any stored constant.
+A 0.9 mV offset drift cancels completely in the AC path.
+
+- For **surges** — AC, and the reason this board exists — the offset drift can be ignored.
+- **Only `dc_a` is affected.** For DC calibration runs, take a zero reading immediately
+  before or after rather than trusting `V_OFFSET_CAL` from an earlier session.
+
+This is the practical payoff of the live zero. Every 2024-25 sketch computed the mean and
+then discarded it in favour of a hard-coded 2.5 V; keeping it is what makes the
+measurement survive its own hardware drifting.
