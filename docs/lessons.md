@@ -46,9 +46,27 @@
     `dual_logger.py` is method-limited, NOT a true surge peak (freezer showed ~3.5A;
     real instantaneous surge is unmeasured, likely much higher). Use scope + shunt if
     a true surge number is needed for inverter sizing.
-    **CONFIRMED AND QUANTIFIED 2026-09-27**: measured at ~881 SPS with
-    `firmware/esp32_ads1115_cycle_stats`, the chest freezer's start is **17.8 A peak /
-    11.75 A RMS held ~1.1 s** — the 10 Hz chain understated it **5x on peak, 3.4x on
-    RMS**. "Likely much higher" was right. The scope advice still stands for a true
-    instantaneous number; what changed is that the figure is now bounded rather than
-    unknown. See `loads/chest_freezer.json`.
+    **MEASURED 2026-09-27**, at ~881 SPS with
+    `firmware/esp32_ads1115_cycle_stats`: the chest freezer's start is **17.8 A peak /
+    11.75 A RMS held ~1.1 s**. The scope advice stands for a true instantaneous number;
+    the figure is now bounded rather than unknown. See `loads/chest_freezer.json`.
+
+    **But two specifics above are WRONG, corrected the same day by re-reading the source
+    capture — and the correction matters more than the number.**
+
+    - **The transient is NOT sub-100 ms.** It is a ~1 s locked-rotor plateau ending in an
+      abrupt PTC dropout. Nothing "falls between samples" on a 100 ms scale.
+    - **The rig did NOT miss it.** `latest_chest_freezer_run.csv` holds a maximum of
+      **12.128 A**, which agrees with the new instrument's 11.75 A RMS to within 3%. The
+      3.5 A that reached `chest_freezer.json` does not reproduce from its own stated
+      derivation.
+
+    The real failure mode is different and worth knowing: dual_logger emits rows at
+    10/s, but the current VALUE only changes every **1.06 s** — sample-and-hold repeats
+    each reading ten times, so the chain's true resolution is ~1 Hz. Across 26 starts it
+    caught the surge on **9** and missed it on **17**, and a miss looks exactly like a
+    start with no surge at all.
+
+    **So the operative lesson is not "the rig can't see inrush" — it is that a derived
+    number must be recomputed from the raw file before it is trusted, and that this
+    chain samples starts intermittently enough that any single start proves nothing.**

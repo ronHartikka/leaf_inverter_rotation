@@ -99,7 +99,7 @@
       "value": 3.5,
       "confidence": "low -- method-limited, NOT a true surge peak. RETAINED FOR PROVENANCE ONLY.",
       "source": "max of first-3s samples across run starts, dual_logger 10Hz sample-and-hold.",
-      "notes": "Kept so older analyses remain traceable. Superseded 2026-09-27 by a measurement ~5x higher. The lesson holds and is now quantified: a 10Hz/100ms-RMS chain understated this start by a factor of 5 on peak and 3.4x on RMS."
+      "notes": "Kept so older analyses remain traceable, and as a caution about derived values. Superseded 2026-09-27. The stated derivation -- max of first-3s samples across run starts, from latest_chest_freezer_run.csv -- yields 12.128A when recomputed, not 3.5A, so this was an ANALYSIS artifact rather than a measurement limit. WHAT THE RIG ACTUALLY DOES: rows arrive at 10.00/s but the current VALUE only changes every 1.06s (dual_logger sample-and-hold repeats each reading ten times), so the chain's real resolution is ~1 Hz. Across the 26 starts in that file it caught the surge on 9 (8.2-12.1A) and missed it entirely on 17, which report only the steady 0.69-0.79A. A miss is INDISTINGUISHABLE from a start with no surge, which is the trap."
     },
 
     "running_current_a": {
@@ -112,7 +112,7 @@
       "value": 17.8,
       "confidence": "medium-high -- a LOWER BOUND on the instantaneous peak, not the peak itself",
       "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. Two starts, 2026-09-27: 17.07A (forced restart, 4 min off) and 17.81A (natural thermostat start, 35 min off).",
-      "notes": "SUPERSEDES the earlier 3.5A figure, which was method-limited by the 10Hz/100ms-RMS chain and is retained in superseded_inrush_peak_a below. The real peak is ~5x that. Still NOT a true instantaneous peak: at ~14.7 samples per 60Hz cycle a discrete sample can miss the crest by a few percent, and the first half-cycle of a motor start can carry a DC-offset asymmetry this rate cannot resolve. So read 17.8A as 'at least 17.8A'. lessons.md #10's advice to use a scope for a definitive instantaneous number still stands; what has changed is that the figure is now BOUNDED rather than unknown. Measured at 17.07A and 17.81A against the instrument's own 20.5A saturation ceiling -- only 13% of margin, so a colder start could clip."
+      "notes": "SUPERSEDES the earlier 3.5A figure. NOTE the reason, corrected 2026-09-27 after re-reading the source capture: the rig did NOT fail to record the surge. latest_chest_freezer_run.csv contains a maximum of 12.128A, and the 3.5A figure does not reproduce from its own stated derivation (max of first-3s samples across run starts). The rig's 12.128A agrees with this instrument's 11.75A RMS to within 3%. Still NOT a true instantaneous peak: at ~14.7 samples per 60Hz cycle a discrete sample can miss the crest by a few percent, and the first half-cycle of a motor start can carry a DC-offset asymmetry this rate cannot resolve. So read 17.8A as 'at least 17.8A'. lessons.md #10's advice to use a scope for a definitive instantaneous number still stands; what has changed is that the figure is now BOUNDED rather than unknown. Measured at 17.07A and 17.81A against the instrument's own 20.5A saturation ceiling -- only 13% of margin, so a colder start could clip."
     },
     "plateau_a": {
       "value": 11.75,
