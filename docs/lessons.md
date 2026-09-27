@@ -46,3 +46,9 @@
     `dual_logger.py` is method-limited, NOT a true surge peak (freezer showed ~3.5A;
     real instantaneous surge is unmeasured, likely much higher). Use scope + shunt if
     a true surge number is needed for inverter sizing.
+    **CONFIRMED AND QUANTIFIED 2026-09-27**: measured at ~881 SPS with
+    `firmware/esp32_ads1115_cycle_stats`, the chest freezer's start is **17.8 A peak /
+    11.75 A RMS held ~1.1 s** — the 10 Hz chain understated it **5x on peak, 3.4x on
+    RMS**. "Likely much higher" was right. The scope advice still stands for a true
+    instantaneous number; what changed is that the figure is now bounded rather than
+    unknown. See `loads/chest_freezer.json`.

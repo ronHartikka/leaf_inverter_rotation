@@ -88,6 +88,20 @@
   },
 
   "electrical": {
+    "running_current_deployment_2026_09_27_a": {
+      "value": 0.629,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats, per-cycle RMS, steady body of a 34.7 min run, 2026-09-27. Instrument validated the same session against an 80W resistive load to within 1% and against crest factor (pk/rms 1.4125 vs sqrt(2)).",
+      "notes": "13% BELOW the 0.72A warm-bench figure above, and the two are NOT measuring the same situation -- do not treat either as THE running current without its conditions. The earlier characterization records ambient as 'indoor warm-bench'; a warmer room raises head pressure and current. Also DISAGREES with the warm-bench observation that current is flat into shut-off: this run fell 9.2% across its length (0.667A in the first minute, 0.606A in the last), which is the expected signature of a box cooling down -- lower evaporator pressure, less mass flow, less work. Crest factor 1.390, distinguishably below the 1.4125 measured on a resistive load by the same instrument, so the motor current is not quite sinusoidal. Cycle context: 34.7 min run, 35.2 min off, then a natural restart -- both far from the 26.6/11.1 min means, because two deliberate 4-minute interruptions had deepened the pulldown."
+    },
+
+    "superseded_inrush_peak_a": {
+      "value": 3.5,
+      "confidence": "low -- method-limited, NOT a true surge peak. RETAINED FOR PROVENANCE ONLY.",
+      "source": "max of first-3s samples across run starts, dual_logger 10Hz sample-and-hold.",
+      "notes": "Kept so older analyses remain traceable. Superseded 2026-09-27 by a measurement ~5x higher. The lesson holds and is now quantified: a 10Hz/100ms-RMS chain understated this start by a factor of 5 on peak and 3.4x on RMS."
+    },
+
     "running_current_a": {
       "value": 0.72,
       "confidence": "high",
@@ -95,22 +109,22 @@
       "notes": "Steady running mean 0.717A. End-of-run (final 60s before thermostat cutout) averaged 0.706A, per-run range 0.673-0.788A -- FLAT into shut-off, i.e. thermostatic cutout, not a laboring/rising-current compressor. Matches dorm fridge (~0.68A) and confirms compressor-class current independence from box size."
     },
     "inrush_peak_a": {
-      "value": 3.5,
-      "confidence": "low -- method-limited, NOT a true surge peak",
-      "source": "max of first-3s samples across run starts, dual_logger 10Hz sample-and-hold.",
-      "notes": "3.47A is the highest value the 10Hz/100ms-RMS-window capture saw at start; it is NOT the instantaneous inrush. A real induction-compressor start transient is sub-100ms and heavily averaged out by both the ACS712 RMS window and 10Hz sampling. True instantaneous surge is unmeasured by this rig and could be well higher (10s of amps). If a true surge number is needed for inverter sizing, capture with a scope + current shunt. Notably the feared ACS712 railing did NOT appear -- but absence of clipping here does not prove low instantaneous inrush, it reflects the averaging."
+      "value": 17.8,
+      "confidence": "medium-high -- a LOWER BOUND on the instantaneous peak, not the peak itself",
+      "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. Two starts, 2026-09-27: 17.07A (forced restart, 4 min off) and 17.81A (natural thermostat start, 35 min off).",
+      "notes": "SUPERSEDES the earlier 3.5A figure, which was method-limited by the 10Hz/100ms-RMS chain and is retained in superseded_inrush_peak_a below. The real peak is ~5x that. Still NOT a true instantaneous peak: at ~14.7 samples per 60Hz cycle a discrete sample can miss the crest by a few percent, and the first half-cycle of a motor start can carry a DC-offset asymmetry this rate cannot resolve. So read 17.8A as 'at least 17.8A'. lessons.md #10's advice to use a scope for a definitive instantaneous number still stands; what has changed is that the figure is now BOUNDED rather than unknown. Measured at 17.07A and 17.81A against the instrument's own 20.5A saturation ceiling -- only 13% of margin, so a colder start could clip."
     },
     "plateau_a": {
-      "value": null,
-      "confidence": null,
-      "source": "would require a fast (>=1kHz) start capture; the 100ms burst under-sampled it this run.",
-      "notes": "Start method (PTC shelf vs capacitor/relay-start) NOT resolved. This run's start samples show current already at steady ~0.75A by the first captured point -- the settle transient fell between samples. Leaving compressor_type unresolved rather than guessing. Low priority given the replace-the-unit decision."
+      "value": 11.75,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats, per-cycle RMS, 2026-09-27. Two starts: 11.78A (forced) and 11.72A (natural) -- reproducible to 0.5%.",
+      "notes": "RESOLVES the start method as PTC. The signature is unambiguous: a sustained locked-rotor RMS plateau ending in an ABRUPT collapse as the PTC heats and switches the start winding out. A capacitor/relay start would not hold a flat plateau for ~1s. Note 11.75A RMS is ~1400 VA at 120V -- the number that matters for inverter and battery-pack sizing, more than the instantaneous peak."
     },
     "inrush_duration_s": {
-      "value": null,
-      "confidence": null,
-      "source": "unresolved -- start transient under-sampled (see plateau_a).",
-      "notes": "Current is at steady value by the first post-start sample; settle duration shorter than the sampling could resolve, OR masked by sample-and-hold. Not a limiting factor for overcurrent_trip_ms given the low steady current."
+      "value": 1.1,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats, 2026-09-27. PTC dropout at ~0.83s on a forced restart (4 min off) and ~1.1s on a natural start (35 min off).",
+      "notes": "USE THE 1.1s FIGURE -- the fully-cooled start is the WORSE case, not the forced one. A cold PTC has lower resistance, so it takes longer to heat to its switch-out point; a partly-warmed PTC switches out sooner. This is the opposite of the intuitive expectation. Total settle to steady running is ~2s. Neither start stalled, so 4 minutes cleared lessons.md #2's 180s minimum comfortably."
     }
   },
 
