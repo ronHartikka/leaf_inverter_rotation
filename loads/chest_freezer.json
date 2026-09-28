@@ -88,6 +88,15 @@
   },
 
   "electrical": {
+    "deployment_cycle_2026_09_28": {
+      "duty_pct": 60.8,
+      "on_min": 52.30,
+      "off_min": 33.80,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats, gap-free 13.2h capture in the DEPLOYMENT location, undisturbed (overnight_freezer_capture.txt). 9 complete cycles; statistics over the 8 normal ones.",
+      "notes": "DEFROST EXPERIMENT BASELINE -- this is the BEFORE capture (docs/todo.md). Extraordinarily repeatable: off-period sd 0.15 min (9 seconds) across 8 intervals, run sd 2.08 min, duty sd 0.9%. Steady current 0.6372A sd 0.0063, falling 14.6% within each run as the box cools.\n\nDIFFERS SHARPLY FROM THE WARM-BENCH CHARACTERISATION in duty_cycle below: on 52.3 vs 26.6 min, off 33.8 vs 11.1 min, cycle 86 vs 37.7 min, duty 60.8% vs 70%. Both are measured; they are not the same situation. That characterisation records ambient as indoor warm-bench, this is the deployment spot. Longer off periods follow from a colder ambient (less heat leak), but colder ambient should SHORTEN runs via better condensing -- runs doubling instead is consistent with reduced cooling capacity, i.e. the frost Ron observed 2026-09-26. Neither figure is THE duty cycle; duty depends on ambient and on evaporator condition.\n\nWHICH FIGURE rotation_budget.md SHOULD USE IS AN OPEN DECISION for Ron -- 60.8% is the deployment measurement and materially changes the make-or-break arithmetic, but it is a PRE-DEFROST number and the defrost experiment may move it again.\n\nONE OUTLIER in 9: run 6 went 75.6 min after an identical 33.68 min off period, with lower steady current (0.6208A) and a deeper drop (-16.2%) -- same starting temperature, much longer run, ending colder. Unexplained. It did not recur in the following three cycles."
+    },
+
     "cycle_observations_2026_09_27": {
       "value": null,
       "confidence": "LOW -- only 2 clean cycles; see the caution below",
@@ -116,21 +125,22 @@
       "notes": "Steady running mean 0.717A. End-of-run (final 60s before thermostat cutout) averaged 0.706A, per-run range 0.673-0.788A -- FLAT into shut-off, i.e. thermostatic cutout, not a laboring/rising-current compressor. Matches dorm fridge (~0.68A) and confirms compressor-class current independence from box size."
     },
     "inrush_peak_a": {
-      "value": 17.8,
-      "confidence": "medium-high -- a LOWER BOUND on the instantaneous peak, not the peak itself",
-      "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. FOUR clean starts, 2026-09-27: 17.07A (forced restart, 4 min off), then 17.81A, 17.67A and 17.24A on natural thermostat starts. Peak spread 4%; locked-rotor RMS 11.54-12.02A; locked-rotor duration 1.07-1.10s on all three natural starts. Capture file: test_for_real.txt.",
+      "value": 17.3,
+      "confidence": "high for the sampled peak; a LOWER BOUND on the true instantaneous peak",
+      "max_observed": 17.81,
+      "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. NINE clean starts over a gap-free 13.2h capture, 2026-09-27/28 (overnight_freezer_capture.txt): peak mean 17.32A sd 0.24; locked-rotor RMS mean 11.80A sd 0.08; locked-rotor duration mean 1.072s sd 0.014. Four earlier starts the same evening (test_for_real.txt) agreed: 17.07-17.81A.",
       "notes": "SUPERSEDES the earlier 3.5A figure. NOTE the reason, corrected 2026-09-27 after re-reading the source capture: the rig did NOT fail to record the surge. latest_chest_freezer_run.csv contains a maximum of 12.128A, and the 3.5A figure does not reproduce from its own stated derivation (max of first-3s samples across run starts). The rig's 12.128A agrees with this instrument's 11.75A RMS to within 3%. Still NOT a true instantaneous peak: at ~14.7 samples per 60Hz cycle a discrete sample can miss the crest by a few percent, and the first half-cycle of a motor start can carry a DC-offset asymmetry this rate cannot resolve. So read 17.8A as 'at least 17.8A'. lessons.md #10's advice to use a scope for a definitive instantaneous number still stands; what has changed is that the figure is now BOUNDED rather than unknown. Measured at 17.07A and 17.81A against the instrument's own 20.5A saturation ceiling -- only 13% of margin, so a colder start could clip."
     },
     "plateau_a": {
-      "value": 11.75,
+      "value": 11.80,
       "confidence": "high",
-      "source": "esp32_ads1115_cycle_stats, per-cycle RMS, 2026-09-27. Two starts: 11.78A (forced) and 11.72A (natural) -- reproducible to 0.5%.",
+      "source": "esp32_ads1115_cycle_stats, per-cycle RMS. Nine clean starts over 13.2h, 2026-09-27/28: mean 11.80A, sd 0.08A -- reproducible to 0.7%.",
       "notes": "RESOLVES the start method as PTC. The signature is unambiguous: a sustained locked-rotor RMS plateau ending in an ABRUPT collapse as the PTC heats and switches the start winding out. A capacitor/relay start would not hold a flat plateau for ~1s. Note 11.75A RMS is ~1400 VA at 120V -- the number that matters for inverter and battery-pack sizing, more than the instantaneous peak."
     },
     "inrush_duration_s": {
-      "value": 1.1,
+      "value": 1.07,
       "confidence": "high",
-      "source": "esp32_ads1115_cycle_stats, 2026-09-27. PTC dropout at ~0.83s on a forced restart (4 min off) and ~1.1s on a natural start (35 min off).",
+      "source": "esp32_ads1115_cycle_stats. Nine clean natural starts, 2026-09-27/28: mean 1.072s, sd 0.014s. A forced restart after only 4 min off gave 0.83s.",
       "notes": "USE THE 1.1s FIGURE -- the fully-cooled start is the WORSE case, not the forced one. A cold PTC has lower resistance, so it takes longer to heat to its switch-out point; a partly-warmed PTC switches out sooner. This is the opposite of the intuitive expectation. Total settle to steady running is ~2s. Neither start stalled, so 4 minutes cleared lessons.md #2's 180s minimum comfortably."
     }
   },

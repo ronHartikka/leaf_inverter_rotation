@@ -9,9 +9,25 @@ doesn't, no rotation schedule can keep all three adequately powered.
 | Load           | Running current | Duty cycle | Warmup (OFF)  | Status |
 |----------------|-----------------|------------|---------------|--------|
 | Dorm fridge    | ~0.68 A         | ~50%       | ~1.1 °F/min   | done (test piece, worst case) |
-| Chest freezer  | ~0.72 A         | ~70%       | ~0.18 °F/min  | done — **flagged for replacement** (running over factory spec) |
+| Chest freezer  | ~0.72 A         | ~70% / **60.8%** | ~0.18 °F/min  | done — **flagged for replacement**; see the deployment measurement below |
 | Kitchen fridge | ~0.75 A (meas.) | ~60% night (meas.) | TBD (×2 compartments) | night baseline done; daytime capture till 10pm 2026-07-22 |
 | Furnace        | TBD             | TBD        | TBD           | later |
+
+**Chest freezer — DEPLOYMENT duty measured 60.8%, not 70% [2026-09-27/28].** A gap-free
+13.2 h capture in the deployment location, undisturbed, 9 complete cycles
+(`firmware/esp32_ads1115_cycle_stats`, see `loads/chest_freezer.json`
+`deployment_cycle_2026_09_28`). Extraordinarily repeatable: **off-period sd 9 seconds**
+across 8 intervals, duty sd 0.9%.
+
+- **on 52.3 min, off 33.8 min, duty 60.8%** — against 26.6 / 11.1 / 70% from the
+  warm-bench characterisation. Both measured; NOT the same situation.
+- The table above now carries both figures. **Which one this budget should use is an open
+  decision.** 60.8% materially changes the arithmetic — 3 × 60.8% = 182% rather than 210%,
+  still far over budget, but the freezer is less dominant than recorded.
+- **It is a PRE-DEFROST number.** Ron observed more frost than usual on 2026-09-26, and
+  the doubled run times are consistent with reduced cooling capacity. The queued defrost
+  experiment (`docs/todo.md`) uses this capture as its BEFORE half and may move the figure
+  again. Settle the budget figure after that, not before.
 
 **Kitchen fridge — night baseline measured [2026-07-21/22 fresh capture].**
 ~15 h continuous capture with the 3.5 A firmware; clean cycling, no false trips.
