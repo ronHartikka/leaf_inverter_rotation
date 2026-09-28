@@ -642,3 +642,30 @@ fresh, just wrong.
       compressor stop, so it over-counts. For the fridge's OWN compressor-stop
       behavior use `tools/fridge_compressor_stops.py` instead. Decide a name with Ron
       before renaming (his consent required for terms).
+
+## QUEUED — defrost the chest freezer, as a MEASUREMENT [2026-09-27]
+
+Ron opened the lid 2026-09-26 and noted **more frost than before**. Defrost it — but
+run the same capture before and after, because this discriminates between two
+explanations the project has never been able to separate.
+
+`loads/chest_freezer.json` calls duty cycle the "MAKE-OR-BREAK PARAMETER, and it
+breaks", measures it at ~70%, and explains the weak 0.075 F/min pulldown as
+"consistent with a tired compressor and/or low R12 charge on a 1994 unit" — which is
+why the unit is flagged for replacement.
+
+**A frosted evaporator produces an identical signature**: weak pulldown, long runs,
+high duty, colder evaporator at cut-out. The existing diagnosis was made without
+knowing the frost state, so it cannot tell a tired compressor from a dirty one.
+
+- [ ] Capture a clean multi-cycle run BEFORE defrosting (see below — the 2026-09-27
+      attempt produced only 2 usable cycles).
+- [ ] Defrost thoroughly.
+- [ ] Capture again under the same conditions.
+- [ ] Compare duty. A material drop means the unit is not tired and
+      `docs/rotation_budget.md`'s make-or-break number is better than believed. No
+      change confirms the replacement flag on real evidence.
+
+**Both captures need `caffeinate -i`** or a non-sleeping logger — see lessons.md #11.
+The instrument is `firmware/esp32_ads1115_cycle_stats` on the ESP32+ADS1115 board,
+calibrated 2026-09-27 (docs/mcu_inventory.md section 7).

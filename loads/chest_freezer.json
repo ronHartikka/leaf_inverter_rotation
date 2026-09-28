@@ -88,6 +88,13 @@
   },
 
   "electrical": {
+    "cycle_observations_2026_09_27": {
+      "value": null,
+      "confidence": "LOW -- only 2 clean cycles; see the caution below",
+      "source": "esp32_ads1115_cycle_stats, 2026-09-27 evening.",
+      "notes": "ONLY TWO CYCLES ARE USABLE: 34.66 min (forced start) and 52.45 min after 35.2 min off, giving one duty figure of 59.8%. Both far exceed the 26.6 min mean run in duty_cycle above, but two cycles from a session that began with two deliberate power interruptions prove nothing about steady-state behaviour. THREE FURTHER CYCLES WERE DISCARDED: the capture developed ten gaps, and after the first one 47% of elapsed time is missing from the log (pattern ~46 s logged, ~16 min absent, repeating -- a sleeping laptop). Gaps merge and truncate cycles, so apparent run lengths of 75.5, 58.5 and 44.5 min are artifacts, not measurements. An apparent run boundary in a gapped log is indistinguishable from a real one. The four start transients above are unaffected -- each was verified gap-free across its first 2.5 s."
+    },
+
     "running_current_deployment_2026_09_27_a": {
       "value": 0.629,
       "confidence": "high",
@@ -111,7 +118,7 @@
     "inrush_peak_a": {
       "value": 17.8,
       "confidence": "medium-high -- a LOWER BOUND on the instantaneous peak, not the peak itself",
-      "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. Two starts, 2026-09-27: 17.07A (forced restart, 4 min off) and 17.81A (natural thermostat start, 35 min off).",
+      "source": "esp32_ads1115_cycle_stats, ADS1115 differential AIN2-AIN3 at ~881 SPS, per-power-cycle peak deviation about the live mean. FOUR clean starts, 2026-09-27: 17.07A (forced restart, 4 min off), then 17.81A, 17.67A and 17.24A on natural thermostat starts. Peak spread 4%; locked-rotor RMS 11.54-12.02A; locked-rotor duration 1.07-1.10s on all three natural starts. Capture file: test_for_real.txt.",
       "notes": "SUPERSEDES the earlier 3.5A figure. NOTE the reason, corrected 2026-09-27 after re-reading the source capture: the rig did NOT fail to record the surge. latest_chest_freezer_run.csv contains a maximum of 12.128A, and the 3.5A figure does not reproduce from its own stated derivation (max of first-3s samples across run starts). The rig's 12.128A agrees with this instrument's 11.75A RMS to within 3%. Still NOT a true instantaneous peak: at ~14.7 samples per 60Hz cycle a discrete sample can miss the crest by a few percent, and the first half-cycle of a motor start can carry a DC-offset asymmetry this rate cannot resolve. So read 17.8A as 'at least 17.8A'. lessons.md #10's advice to use a scope for a definitive instantaneous number still stands; what has changed is that the figure is now BOUNDED rather than unknown. Measured at 17.07A and 17.81A against the instrument's own 20.5A saturation ceiling -- only 13% of margin, so a colder start could clip."
     },
     "plateau_a": {

@@ -70,3 +70,14 @@
     **So the operative lesson is not "the rig can't see inrush" — it is that a derived
     number must be recomputed from the raw file before it is trusted, and that this
     chain samples starts intermittently enough that any single start proves nothing.**
+
+11. **A long capture on a laptop dies silently when the laptop sleeps — and a gap
+    looks exactly like a real cycle boundary.** A 6.9 h freezer capture (2026-09-27)
+    developed ten gaps; after the first, **47% of elapsed time was missing** from the
+    log, in a repeating pattern of ~46 s recorded and ~16 min absent. Nothing in the
+    file announces this: `t_ms` never resets, no error appears, and the rows on either
+    side of a gap are valid. Three of five cycles were analysed, and a whole narrative
+    about run lengths built, before the gaps were found. **Check for time gaps BEFORE
+    analysing any capture** — `t[i] - t[i-1]` greater than a couple of sample intervals
+    — and mark which segments are clean. Prevention: `caffeinate -i` while capturing, or
+    a dedicated logger that is not someone's laptop (which is why the Ubuntu box exists).
