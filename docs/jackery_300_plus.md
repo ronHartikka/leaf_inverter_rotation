@@ -243,12 +243,28 @@ Everything else carries a compressor's constraints.
 at 207 W — under **4% additional daily duty** if defrosts run roughly daily, taken at a
 moment of your choosing rather than the fridge's.
 
-### Thermal — the vendor caution looks conservative
+### Thermal — and the unit has its own fan
 
 206 W in plus 70 W out ≈ **276 W against a 300 W rating, doing both at once**, which is
-exactly the condition §1 records a caution about. **The case stayed cool.** (An external
-fan was running, but on wall power and blowing on the case; the unit was not hot before it
-was fitted either.)
+exactly the condition §1 records a caution about. **The case stayed cool.**
+
+**It has an INTERNAL FAN.** Airflow is **IN the left (larger) vent, OUT the right
+(smaller — the AC input is on that side).** Detected with tissue paper, because the unit
+sits on a running fridge and neither sound nor vibration can be trusted there.
+
+**So any external fan must ASSIST that flow, never oppose it** — blow into the left
+intake, or extract from the right exhaust. Blowing into the right exhaust fights the
+internal fan and could be worse than nothing.
+
+**CAVEAT on the "stayed cool" reading:** an external fan was running during it, in a
+position that happened to assist. So that observation is NOT a fair test of the unit
+unaided. It was unplugged afterwards for a clean run — see the result below when
+recorded. If the unit stays comfortable through simultaneous charge-and-discharge on its
+own fan, the vendor caution is settled for this application and no external cooling is
+needed.
+
+If cooling is ever wanted, giving the **intake** clear cool air does more than forcing
+extra flow through — sitting on top of a fridge it draws whatever rises off the cabinet.
 
 ### Deferral, revised
 
