@@ -147,10 +147,14 @@
       "confidence": "high",
       "source": "esp32_ads1115_cycle_stats at 60 windows/s, one complete defrost inside a 17.6h gap-free capture (fridgeCapture.txt), 2026-09-28/29.",
       "notes": "CONFIRMS THE RECORDED STRUCTURE with measurements: heater 29.6 min, then a ~7.5 min dwell at 0.045A (everything off), then a 131 min recovery run at 94.9% duty. That is the '~30 min defrost + ~7 min dwell + pulldown-recovery' model in docs/todo.md, now measured end to end. Heater 1.696A/204VA against the recorded 1.8A/198W. Crest factor 1.44 during the heater period identifies it as purely resistive, so VA is essentially W.",
-      "dips_NOT_observed": {
-        "finding": "The recorded signature_note claims 'PERIODIC BRIEF DIPS to ~1 A (observed ~15 & ~25 min in, ~10 min apart)'. THIS DEFROST HAD NONE.",
-        "evidence": "Across all 105838 windows of the 29.4 min heater period: minimum 1.6377A, median 1.6969A, sd 0.0289A. ZERO windows below 1.5A, and none below 1.2A. At 60 windows/s with a 3.4mA noise floor a dip to ~1A would be unmissable even lasting a single 17ms window.",
-        "reading": "Either the dips are not a constant feature of every defrost (the control is adaptive), or the July observation came from the ~1 Hz sample-and-hold chain that also produced the wrong freezer inrush figure. This measurement cannot distinguish them. CONSEQUENCE: detect-and-protect logic should still debounce defensively, but must NOT rely on dips being present -- and must not treat their absence as evidence of anything."
+      "dips_reexamined_2026_09_29": {
+        "finding": "The dips are REAL but were over-generalised. They occurred in ONE defrost of six examined, as two isolated single samples.",
+        "source_file": "run_20260721_135703.csv on the Ubuntu box -- a capture the provenance.capture_files list never recorded, which is why this took digging. Add it there.",
+        "july_evidence": "That file holds five defrosts. 07-21 14:24 (29.5 min, median 1.839A) contains two samples at exactly 1.000A, at t+15.8 and t+25.9 min -- 10.1 min apart, matching the original note exactly. The other four (07-22 13:55, 07-23 00:19, 07-23 13:58, 07-23 23:02) contain ZERO samples below 1.5A.",
+        "september_evidence": "The 2026-09-28 defrost at 60 windows/s: minimum 1.6377A, median 1.6969A, sd 0.0289A across 105838 windows of the 29.4 min heater period. Nothing below 1.5A. That is ~3500x the temporal resolution of the July chain, so a real heater interruption of even 17 ms would have been caught.",
+        "on_the_value_1.000A": "Checked as a possible code artifact; it is not. Values either side of 1.000A occur ~9000 times each in that file, so it is an ordinary reading.",
+        "how_a_resistor_can_dip": "It cannot on its own -- the control board would have to switch it. Each July dip is exactly ONE sample on a chain whose value updates every 1.05 s. A 100 ms RMS window straddling a heater switch-off reads an INTERMEDIATE value like 1.000A rather than zero, so the samples are consistent with a brief real interruption. They are equally consistent with two bad samples. One sample each cannot distinguish the two.",
+        "consequence": "Debounce defensively, but design nothing that DEPENDS on dips appearing, and read nothing into their absence. Frequency observed: 1 defrost in 6."
       }
     },
     "_comment": "Measured live during the 2026-07-21 fresh-capture power-up (provenance below). Triangulated: flat ~1.8 A resistive draw + compressor confirmed OFF (by observation) + melt water in the drain pan.",
@@ -158,7 +162,7 @@
     "heater_draw_a": 1.8, "heater_power_w": 198,
     "duration_min": 29,
     "duration_note": "~28-30 min (ended 2:54 PM 2026-07-21); exact value from the CSV (current step-up -> drop). This = the MIN UNINTERRUPTED WINDOW rotation must grant once a defrost is detected.",
-    "signature_note": "flat ~1.8 A with PERIODIC BRIEF DIPS to ~1 A (observed ~15 & ~25 min in, ~10 min apart) = the board momentarily cutting the heater to sample the true coil temp (defrost sensor sits next to the heater). Detect-and-protect logic MUST debounce these dips, not read them as 'defrost over'.",
+    "signature_note": "flat ~1.8 A. CORRECTED 2026-09-29 -- this field previously described 'PERIODIC BRIEF DIPS to ~1 A (~15 & ~25 min in, ~10 min apart) = the board momentarily cutting the heater to sample the true coil temp', and required detect-and-protect logic to debounce them. THAT GENERALISED FROM n=2 IN A SINGLE DEFROST. See dips_reexamined_2026_09_29 under measurement_2026_09_28. Debouncing is still sound defensive practice, but nothing should DEPEND on dips appearing, and their absence means nothing.",
  "entry_transient": {
   "_comment": "Current PROFILE at defrost ENTRY (the compressor->heater handoff). Measured from two independent defrosts; reproducible = a deterministic control sequence. Matches the service manual: 'Electrical parts such as COMP, defrost heater, freezer FAN, etc. operate in the following order to prevent noise and parts damage.'",
   "peak_a": 2.6,
