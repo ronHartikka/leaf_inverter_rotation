@@ -184,3 +184,104 @@ it soon."* Candidates raised so far, for that conversation, none chosen:
 - Whether the fridge's ~7-min startup delay and 4-s heater pulse really do disappear
 - Fridge duty cycle as seen from this configuration, for comparison with the
   free-running capture
+
+---
+
+## 9. MEASURED — the buffer mock-up, 2026-09-29
+
+The experiment §7 left open. Run on grid power with no inverter and no rotation: the
+fridge on Jackery battery alone, current measured by `firmware/esp32_ads1115_cycle_stats`
+at 60 windows/s (`fridge_on_jackery.txt`, logged on the Ubuntu box). A defrost fired
+during the run, so this became the worst case the buffer would ever face rather than the
+steady-state test intended.
+
+### The fridge runs normally behind it
+
+Crest factor **2.73–2.76** on the Jackery against **2.68** on wall power, measured minutes
+apart with the same sensor and the same fridge. Current comparable. **A 300 W portable
+inverter handles this load's waveform without visible distress** — that was a real
+question, since the fridge draws ~2.7× its RMS in peak current.
+
+### Discharge, measured at two load levels
+
+| phase | delivered | pack draw | rate | efficiency |
+|---|---|---|---|---|
+| defrost heater | 187 VA | ~243 W | **1.41 %/min** | **77%** |
+| recovery run | ~73 W | ~84 W | **0.48 %/min** | **~85%** |
+
+Efficiency is better at the lower load, as expected. These are the first measured
+round-trip figures for this unit; §3 had assumed 80–85% without evidence.
+
+### A defrost costs 43% of a full pack
+
+100% → 57% over a 30.4 min heater period: **124 Wh from the pack to deliver ~95 Wh.**
+
+Worse in Battery Save, which is the mode to actually run: charging stops at 85% and output
+**cuts at 15%**, so usable capacity is 70% ≈ **202 Wh**. A defrost eats **61% of that**.
+
+**The 15% cutoff is a hazard, not just a limit** — it drops the fridge with no warning,
+and restoring power afterwards is another power-cycle on a box that is already warm.
+Abort to wall power well before it.
+
+### Charging — the number the whole argument needed
+
+**207 W input while simultaneously delivering 70 W**, giving **~137 W net into the pack**
+and ~0.8 %/min. Pass-through works; the fridge never noticed the changeover.
+
+**This is what converts the fridge from a rotation problem into a scheduling one:**
+
+- Before: **~47% duty, thermostat-driven, UNINTERRUPTIBLE** — cutting it costs a ~7 min
+  anti-short-cycle.
+- After: **~18% duty** (≈37 W average demand ÷ 207 W charge rate), **fully schedulable and
+  interruptible at any instant** — no minimum run, no lockout, no penalty for stopping
+  mid-charge.
+
+Charging is the only load in this system that can be started and stopped arbitrarily.
+Everything else carries a compressor's constraints.
+
+**And the defrost stops being a crisis.** Replacing its 124 Wh takes ~55 min of charging
+at 207 W — under **4% additional daily duty** if defrosts run roughly daily, taken at a
+moment of your choosing rather than the fridge's.
+
+### Thermal — the vendor caution looks conservative
+
+206 W in plus 70 W out ≈ **276 W against a 300 W rating, doing both at once**, which is
+exactly the condition §1 records a caution about. **The case stayed cool.** (An external
+fan was running, but on wall power and blowing on the case; the unit was not hot before it
+was fitted either.)
+
+### Deferral, revised
+
+**~6 hours** of fridge-off-the-inverter, from 202 Wh usable against ~35 W average pack
+draw during ordinary cycling. This SUPERSEDES the ~9 h figure asserted earlier in
+conversation, which ignored both inverter losses and the Battery Save window.
+
+**Still preliminary:** the steady-state discharge rate is NOT measured. This run could not
+reach it — the recovery run would have outlasted the battery. It needs its own run: full
+pack, no defrost, two SOC readings 30 min apart during ordinary cycling.
+
+### Unresolved from this run
+
+- **Output frequency.** A basic DMM read **80–90 Hz varying** on the Jackery's output
+  (120.7 VAC) while reading 59.x Hz correctly at the wall. Believed a counter artifact —
+  inverter switching residue and a distorted zero crossing — since nothing crystal-derived
+  wanders 10 Hz. NOT resolved. Low stakes for this fridge, whose BLDC drive rectifies its
+  input anyway; **it would matter a great deal before the chest freezer's induction motor
+  is ever put on the Jackery.** A meter with a 45–65 Hz range would settle it: if it reads
+  anything at all, the output is in band.
+- **Consequence for this run's data:** the firmware's window is fixed at 16.667 ms
+  assuming 60 Hz. If the output is not 60 Hz, everything logged here is per-16.67 ms
+  rather than per-cycle. RMS and peak remain valid; the per-cycle framing does not.
+
+### Follow-on idea worth pursuing — DC charging
+
+The unit accepts **12 V or 10–27 V, 5 A max** on its DC input. At 12 V that is **60 W**,
+which comfortably exceeds the fridge's ~30 W average demand, and it **bypasses the
+inverter entirely** — so the fridge would leave the one-at-a-time rotation altogether
+rather than merely being rescheduled within it. 60 W is negligible against the Leaf's
+~1.0–1.2 kW DC-DC ceiling.
+
+The obstacle is physical: 12 V delivered from the Leaf (outdoors, ~25 ft from a basement
+window) up to the fridge, at 5 A, needs heavy cable and fusing at the source. The same
+port takes 10–27 V, so solar is the other obvious source — and higher voltage means less
+current for the same power, which makes the cable problem easier.
