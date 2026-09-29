@@ -280,8 +280,10 @@ pack, no defrost, two SOC readings 30 min apart during ordinary cycling.
 
 - **RESOLVED — output frequency is 60 Hz.** A basic DMM read 80–90 Hz varying on the
   output while reading 59.x Hz correctly at the wall. **The Jackery's own screen settles
-  it: `120V 60Hz` with the charger unplugged (its output), `124V 60Hz` with the charger
-  in (the wall input).** The DMM's voltage was right — 120.7 V against the unit's 120 —
+  it: `120V 60Hz` with the charger unplugged and `124V 60Hz` with the charger in. The
+  manual labels that field "Output Voltage and Frequency", so BOTH are the output** —
+  i.e. the inverter's output rises ~4 V while charging, presumably off a higher DC bus.
+  Use 124 V for VA arithmetic during charging and 120 V on battery alone. The DMM's voltage was right — 120.7 V against the unit's 120 —
   and only its frequency counter was confused, as suspected. Per-cycle framing of this
   run's data is therefore valid, and the chest freezer's induction motor would see a
   correct 60 Hz if ever put on the Jackery.
