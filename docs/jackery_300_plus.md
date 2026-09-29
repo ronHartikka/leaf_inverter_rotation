@@ -4,10 +4,17 @@ Recorded 2026-09-14 from a working conversation. **Nothing here is measured on t
 unit.** Specifications are from vendor/retail pages, not from the manual; every number
 about the loads is from this repo's own measurements or its estimates, marked as such.
 
-> **MODEL NOT YET CONFIRMED.** Ron is checking the manual to confirm which unit he has.
-> This matters: the newer **Explorer 300 v2** has a UPS bypass mode (~20 ms transfer)
-> that the **300 Plus** does not. If the unit turns out to be a v2, the buffer idea in
-> §3 gets easier, not harder.
+> **MODEL CONFIRMED 2026-09-29: Explorer 300 Plus.** Not the v2, so there is **no UPS
+> bypass** — the output is always inverter-generated.
+>
+> That cuts both ways, and not as this doc originally assumed. **In favour of the buffer
+> idea:** with no bypass there is no transfer at all when input power is removed, so the
+> fridge sees nothing — not even the v2's ~20 ms. The seamlessness the scheme depends on
+> comes for free. **Against:** conversion losses are paid CONTINUOUSLY, because the
+> fridge's power goes through the inverter even while the wall is feeding it. Round-trip
+> on a time-shifted watt-hour is likely 80–85%, so the fridge's ~26 W average becomes
+> ~31 W as seen by the rig. Not fatal to the ~9 h of deferral the buffer buys, but a real
+> tax that §3 did not account for.
 
 ## 1. Specifications (vendor sources, unverified against the manual)
 
