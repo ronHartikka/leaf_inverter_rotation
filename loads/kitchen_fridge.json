@@ -36,6 +36,14 @@
   },
 
   "electrical": {
+
+    "waveform_crest_factor": {
+      "compressor": 2.68,
+      "defrost_heater": 1.41,
+      "confidence": "high for the compressor as a LOWER BOUND; high for the heater",
+      "source": "esp32_ads1115_cycle_stats, per-60Hz-cycle peak/RMS, 17.6h gap-free capture 2026-09-28/29 (fridgeCapture.txt). Compressor 2.657-2.728 across 16 separate runs; heater 1.44 mean over a full 29.6 min defrost.",
+      "notes": "NEW MEASUREMENT -- the rig cannot make it. A resistive reference (80W crock pot) on the same instrument reads 1.4125 against sqrt(2)=1.4142, so the heater at 1.41 is a textbook resistive load and the compressor at 2.68 is a rectifier-and-capacitor front end drawing current in short peaks near the voltage crest.\n\nCORROBORATES THE PF ~0.55 ESTIMATE. Crest factor ~2.7 and power factor ~0.55 are the same phenomenon seen two ways; that estimate now has independent measured support rather than standing alone.\n\nCREST FACTOR IDENTIFIES WHICH LOAD IS RUNNING, independent of current level -- compressor 2.68 vs heater 1.41 is unambiguous. A detection method the 1 Hz chain cannot do at all.\n\nCAVEAT: the compressor figure is a LOWER BOUND. At ~14.7 samples per 60 Hz cycle a sine is sampled adequately (hence 1.4125 on the resistive check), but a waveform conducting for only part of each half-cycle puts few samples inside each current pulse. True crest factor is likely higher, and RMS may be slightly understated. A faster rate or a scope would be needed to pin it."
+    },
     "running_current_a": { "value": 0.75, "confidence": "low (provisional)", "source": "pre-event baseline of the 2026-07-19/20 shakedown current trace", "notes": "Variable-speed inverter: ~0.75 A steady near setpoint, but ~1.5 A during pulldown/recovery (box warm, e.g. post-defrost 2026-07-21). SUPERSEDE with settled values from the fresh capture." },
     "inrush_peak_a": { "value": null, "confidence": null, "source": "", "notes": "WARNING: 10Hz/100ms-RMS sampling cannot resolve true inrush; any value is method-limited, not a surge peak." },
     "plateau_a": { "value": null, "confidence": null, "source": "", "notes": "Inverter compressor: expect a smooth ramp, not a PTC shelf." },
@@ -129,6 +137,22 @@
   },
 
   "defrost": {
+
+    "measurement_2026_09_28": {
+      "heater_current_a": 1.696,
+      "heater_va": 204,
+      "heater_duration_min": 29.6,
+      "dwell_min": 7.5,
+      "recovery_min": 131,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats at 60 windows/s, one complete defrost inside a 17.6h gap-free capture (fridgeCapture.txt), 2026-09-28/29.",
+      "notes": "CONFIRMS THE RECORDED STRUCTURE with measurements: heater 29.6 min, then a ~7.5 min dwell at 0.045A (everything off), then a 131 min recovery run at 94.9% duty. That is the '~30 min defrost + ~7 min dwell + pulldown-recovery' model in docs/todo.md, now measured end to end. Heater 1.696A/204VA against the recorded 1.8A/198W. Crest factor 1.44 during the heater period identifies it as purely resistive, so VA is essentially W.",
+      "dips_NOT_observed": {
+        "finding": "The recorded signature_note claims 'PERIODIC BRIEF DIPS to ~1 A (observed ~15 & ~25 min in, ~10 min apart)'. THIS DEFROST HAD NONE.",
+        "evidence": "Across all 105838 windows of the 29.4 min heater period: minimum 1.6377A, median 1.6969A, sd 0.0289A. ZERO windows below 1.5A, and none below 1.2A. At 60 windows/s with a 3.4mA noise floor a dip to ~1A would be unmissable even lasting a single 17ms window.",
+        "reading": "Either the dips are not a constant feature of every defrost (the control is adaptive), or the July observation came from the ~1 Hz sample-and-hold chain that also produced the wrong freezer inrush figure. This measurement cannot distinguish them. CONSEQUENCE: detect-and-protect logic should still debounce defensively, but must NOT rely on dips being present -- and must not treat their absence as evidence of anything."
+      }
+    },
     "_comment": "Measured live during the 2026-07-21 fresh-capture power-up (provenance below). Triangulated: flat ~1.8 A resistive draw + compressor confirmed OFF (by observation) + melt water in the drain pan.",
     "type": "sensor-based adaptive (thermistor-terminated); NOT a fixed bimetal",
     "heater_draw_a": 1.8, "heater_power_w": 198,
@@ -165,6 +189,16 @@
   },
 
   "duty_cycle": {
+
+    "deployment_2026_09_28": {
+      "settled_duty_pct": 46.9,
+      "whole_capture_duty_pct": 59.9,
+      "settled_on_min": 24.8,
+      "settled_off_min": 28.0,
+      "confidence": "high",
+      "source": "esp32_ads1115_cycle_stats, 17.6h gap-free, 17 cycles (fridgeCapture.txt). Settled figures from the last 7 cycles, overnight and post-recovery: on sd 0.8, off sd 1.6.",
+      "notes": "THE DECOMPOSITION IS THE POINT. Settled cycling is 46.9%; the whole 17.6h capture including one defrost and its 131 min recovery is 59.9%. The value_pct below (~59-60%, July night baseline) matches the WHOLE-CAPTURE figure almost exactly, which suggests that window contained a defrost too.\n\nSO A DUTY FIGURE FOR THIS FRIDGE MEANS DIFFERENT THINGS depending on whether a defrost fell inside the window -- a 13-point swing. Defrost fires on accumulated compressor run-hours (7-50), so this is a scheduling term, not a constant, and docs/rotation_budget.md should carry both numbers rather than one.\n\nSettled on/off (24.8/28.0) also differ from the July night baseline (~32/~21) in opposite directions -- shorter runs AND longer offs -- so conditions differed, not just defrost timing. Do not merge the two."
+    },
     "value_pct": 59, "confidence": "medium; value_pct = STEADY-cycling baseline. ALL-IN (incl. defrost+recovery) measured at 68.4% -- see observations.",
     "observations": [
       { "value_pct": 68.4, "confidence": "medium", "ambient": "full 74.3 h continuous file: day+night, doors-open, warmer daytime ambient", "basis": "characterize.py on run_20260721_135703.csv: 50.82 h ON of 74.27 h, 75 cycles. ALL-IN effective duty -- includes 4 defrost + ~2 h-recovery cycles, initial pulldown, and daytime door activity. This is the realistic BUDGETING duty; the pure steady-cycling duty underneath is still ~59%. (mean run 40.7 min here is inflated vs the night's ~32 min by the 2 h recovery marathons.)", "source": "2026-07-21..24 continuous capture" },

@@ -10,8 +10,25 @@ doesn't, no rotation schedule can keep all three adequately powered.
 |----------------|-----------------|------------|---------------|--------|
 | Dorm fridge    | ~0.68 A         | ~50%       | ~1.1 °F/min   | done (test piece, worst case) |
 | Chest freezer  | ~0.72 A         | ~70% / **60.8%** | ~0.18 °F/min  | done — **flagged for replacement**; see the deployment measurement below |
-| Kitchen fridge | ~0.75 A (meas.) | ~60% night (meas.) | TBD (×2 compartments) | night baseline done; daytime capture till 10pm 2026-07-22 |
+| Kitchen fridge | ~0.75 A (meas.) | ~60% / **46.9% settled** | TBD (×2 compartments) | night baseline done; deployment measurement below |
 | Furnace        | TBD             | TBD        | TBD           | later |
+
+**Kitchen fridge — the duty figure swings 13 points on defrost timing [2026-09-28/29].**
+A gap-free 17.6 h capture, 17 cycles, one complete defrost
+(`firmware/esp32_ads1115_cycle_stats`; see `loads/kitchen_fridge.json`
+`deployment_2026_09_28`).
+
+- **Settled cycling 46.9%** (on 24.8, off 28.0 min, sd 0.8/1.6) — the quiet overnight
+  state after recovery.
+- **Whole capture 59.9%**, including one defrost and its 131 min recovery run at 94.9%
+  duty.
+- The July night baseline of ~59-60% matches the WHOLE-CAPTURE figure, which suggests
+  that window contained a defrost as well.
+
+**So this load has no single duty number.** Defrost fires on accumulated compressor
+run-hours (7–50), making it a scheduling term rather than a constant — and the budget
+has to treat it as one. Settled on/off (24.8/28.0) also differ from July's ~32/~21 in
+opposite directions, so conditions differed too; the two are not mergeable.
 
 **Chest freezer — DEPLOYMENT duty measured 60.8%, not 70% [2026-09-27/28].** A gap-free
 13.2 h capture in the deployment location, undisturbed, 9 complete cycles
