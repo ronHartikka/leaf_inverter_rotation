@@ -278,16 +278,18 @@ pack, no defrost, two SOC readings 30 min apart during ordinary cycling.
 
 ### Unresolved from this run
 
-- **Output frequency.** A basic DMM read **80–90 Hz varying** on the Jackery's output
-  (120.7 VAC) while reading 59.x Hz correctly at the wall. Believed a counter artifact —
-  inverter switching residue and a distorted zero crossing — since nothing crystal-derived
-  wanders 10 Hz. NOT resolved. Low stakes for this fridge, whose BLDC drive rectifies its
-  input anyway; **it would matter a great deal before the chest freezer's induction motor
-  is ever put on the Jackery.** A meter with a 45–65 Hz range would settle it: if it reads
-  anything at all, the output is in band.
-- **Consequence for this run's data:** the firmware's window is fixed at 16.667 ms
-  assuming 60 Hz. If the output is not 60 Hz, everything logged here is per-16.67 ms
-  rather than per-cycle. RMS and peak remain valid; the per-cycle framing does not.
+- **RESOLVED — output frequency is 60 Hz.** A basic DMM read 80–90 Hz varying on the
+  output while reading 59.x Hz correctly at the wall. **The Jackery's own screen settles
+  it: `120V 60Hz` with the charger unplugged (its output), `124V 60Hz` with the charger
+  in (the wall input).** The DMM's voltage was right — 120.7 V against the unit's 120 —
+  and only its frequency counter was confused, as suspected. Per-cycle framing of this
+  run's data is therefore valid, and the chest freezer's induction motor would see a
+  correct 60 Hz if ever put on the Jackery.
+- **Power factor is NOT ~0.55.** Combining this instrument's current against the Jackery's
+  own wattmeter at the confirmed 120 V output: 0.932 A/100 W, 0.938 A/85 W, 0.753 A/70 W
+  → **PF 0.76–0.89, about 0.78**, and apparently varying with compressor load. The ~0.55
+  on record in `loads/kitchen_fridge.json` looks too low. Neither is a direct measurement;
+  settle it with a meter that reports PF, spot-reading each operating state.
 
 ### Follow-on idea worth pursuing — DC charging
 
