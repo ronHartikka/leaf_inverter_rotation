@@ -388,12 +388,33 @@ Sequence, recorded because it bears on whether §10's camera route can be config
 all:
 
 - Display read **SOC 81%** with **input 0 W** while the charger appeared to be plugged in.
-  The tempting conclusion was a Battery Save deadband — charge to 85%, stop, let the load
-  draw down, resume lower. **Wrong.** The charger was in a bad socket of a power strip.
-  Moving the plug one socket over brought input to **207 W** and SOC began climbing
-  (81 → 83%), 0.4 h to full. **"Holds at 85% on pass-through" stands as recorded in §9.**
-  Note the input did not appear *immediately* on re-plugging — there is a lag of some
-  seconds before the unit registers and reports charge.
+  Moving the plug one socket over in the same power strip brought input to **207 W** and
+  SOC began climbing (81 → 83%), 0.4 h to full. The input did not appear *immediately* on
+  re-plugging — there is a lag of some seconds before the unit registers charge.
+
+  **The cause is UNRESOLVED, and the test above cannot settle it.** Two hypotheses fit
+  every observation equally:
+
+  - **(a) dead socket** — the charger was never drawing, and the pack drifted 85 → 81%
+    under the fridge load.
+  - **(b) Battery Save deadband with a resume point near 80%** — the charger was fine,
+    0 W input at 81% was correct behaviour, and *the act of re-plugging reset the charging
+    logic*, which is why input appeared.
+
+  Re-plugging changes the state, so it produces the same result under both. This was
+  briefly written up here as (a) confirmed; that was wrong, and the confound is recorded
+  as lessons.md #12.
+
+  **The discriminating test does not involve the Jackery at all: plug a known load — a
+  lamp, the 80 W crock pot, a meter — into the ORIGINAL socket and see whether it works.**
+  If that socket is live, (a) is dead and the deadband is real.
+
+  Weak supporting arithmetic for (b), not conclusive: at ~74 W the pack falls roughly
+  25–29%/h (measured: 85 → 46% in 80 min), so 85 → 80% is only ~10 min of compressor
+  running. A tight 80–85% deadband would therefore cycle every ~20–30 min and would spend
+  most of its time *below* 85% — yet every earlier look at the screen found 85%. That
+  argues for (a), or for a socket that was intermittent rather than dead.
+
 - **The Jackery app will not connect.** Every attempt and every app restart ends in a
   "connecting Bluetooth" timeout; no valid data, controls inert. Ruled out: unit asleep
   (screen lit, and it answers ping on the LAN at `192.168.1.65`, MAC `f0:a7:31:94:e2:d`,

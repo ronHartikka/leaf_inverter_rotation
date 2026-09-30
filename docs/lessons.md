@@ -82,14 +82,21 @@
     — and mark which segments are clean. Prevention: `caffeinate -i` while capturing, or
     a dedicated logger that is not someone's laptop (which is why the Ubuntu box exists).
 
-12. **A power strip socket can fail silently, and the symptom imitates a real finding.**
+12. **A test that changes the state cannot tell you which state you were in.**
     2026-09-30: the Jackery showed 0 W input with its charger apparently plugged in and
-    SOC drifting down from a ceiling it had been holding. That is exactly the signature of
-    a charge-controller deadband, and it was nearly recorded as one. The actual cause was
-    a dead socket in a mediocre power strip — moving the plug one socket over brought
-    input straight to 207 W. Nothing anywhere announced the fault; the strip was visibly
-    "on" because another device on it was running. **Before crediting any absence of
-    power — no charging, no current, a capture that stops — move the plug.** The same
-    strip also feeds the instrument, where a dropped socket would produce precisely the
-    silent capture gap of #11 with a different cause and an identical signature. Prefer a
-    known-good wall outlet for anything whose absence you would have to interpret.
+    SOC below the ceiling it had been holding. The plug was moved one socket over and
+    charging started — and this was written up as proof that the first socket was dead.
+    It proves nothing. **Re-plugging a charger is itself an event that restarts charging
+    logic,** so the identical observation follows whether the socket was dead OR the
+    charge controller was sitting in a deadband and simply got reset. Ron caught it.
+    Before running a test, ask what the *other* hypothesis predicts — if it predicts the
+    same result, the test is worthless no matter how decisive it feels. Here the
+    discriminating test does not touch the device under suspicion at all: put a known
+    load in the ORIGINAL socket.
+
+    Secondary, and still good practice: an absence of power — no charging, no current, a
+    capture that stops — is worth suspecting the outlet for, since a strip can look
+    plainly "on" because something else on it is running, and a dropped socket feeding
+    the instrument would produce exactly the silent capture gap of #11 with an identical
+    signature. Prefer a known-good wall outlet for anything whose absence you would have
+    to interpret.
