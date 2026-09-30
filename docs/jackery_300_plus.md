@@ -305,3 +305,79 @@ The obstacle is physical: 12 V delivered from the Leaf (outdoors, ~25 ft from a 
 window) up to the fridge, at 5 A, needs heavy cable and fusing at the source. The same
 port takes 10–27 V, so solar is the other obvious source — and higher voltage means less
 current for the same power, which makes the cable problem easier.
+
+## 10. Reading SOC off the screen with a camera — 2026-09-30
+
+Context: §4's BLE route is dead in practice — the unit shuts Bluetooth off once it has
+Wi-Fi, and its Wi-Fi goes to Jackery's cloud, which is gone in an outage. A camera on the
+front panel is fully local and model-independent, so it survives what the app route
+cannot.
+
+### The display timeout is settable — and that decides feasibility
+
+The Jackery app offers three **Screen** options: **2 hr, 2 m, Off.** The prior art below
+was built around a 2-minute timeout and needed a robot finger to defeat it; a 2-hour
+setting removes most of that problem.
+
+Two things to establish before relying on it:
+
+- [ ] **What "Off" means** — screen never lights, or timeout disabled so it stays lit?
+      Settle by observation, not by reading the label.
+- [ ] **Does the setting persist a Jackery power cycle, with no app and no internet?**
+      This is the one that matters. The setting is made through the cloud-dependent app,
+      so if it lives only in the app's session rather than the unit's non-volatile
+      memory, it evaporates in exactly the situation we need it. Set it, fully power the
+      unit down, bring it back up, and look.
+- [ ] Standing cost of a lit display. Probably under a watt, but against a 288 Wh pack a
+      continuously-lit screen is worth a number rather than a shrug. Measurable by
+      difference with the instrument, at a settled output.
+
+If the 2 hr setting holds across a power cycle, a wake actuator becomes an occasional
+convenience rather than a requirement. Ron has hobby servos; a bracket the Jackery sits
+in, rather than anything glued to the case, is the preferred form if one is built.
+
+### Prior art: `philippbussche/jacktessery` (read 2026-09-30)
+
+Same problem, different model — Explorer **1000 Pro**. ESP32-CAM photographs the panel
+and POSTs the JPEG to a Flask API that does the reading. Worth knowing in detail because
+it is a working instance, not a proposal.
+
+**No OpenCV and no machine learning.** The entire image pipeline is Pillow, about 25
+lines: greyscale → threshold at 230 → crop to a fixed region of interest → dilate (3×3
+max filter) → invert → add a 10 px white border then a 5 px black border → Tesseract.
+
+**Tesseract does work on seven-segment digits — with the right model.** The config uses
+`lang = ssd_alphanum_plus`, a Tesseract model trained on seven-segment displays, with
+`--psm 8` (treat the region as a single word). Plain Tesseract is poor at segment digits;
+that tessdata plus a tight region of interest is a legitimate route and is less work than
+writing segment-decode logic by hand. *(An earlier claim in this project's conversation
+that Tesseract is the wrong tool here was too broad — it is wrong only without the
+seven-segment model.)*
+
+**The validation layer is the real engineering content**, and any version we build needs
+its equivalent — `metrics.py` there carries, per value:
+
+- `max_value` — SOC cannot exceed 100
+- `max_rate` plus a 900 s grace period — reject an implausible jump *unless* enough time
+  has elapsed to justify it. Our rate limit is already derivable from measured data:
+  roughly 2 %/hour at 52 W output (§9).
+- `min_confidence` — Tesseract's own per-word confidence, floored at 60
+- on a failed read, revert to the last good value rather than publish garbage
+
+That this scaffolding was necessary says the OCR misreads regularly. Plan for it.
+
+**A tell in its configuration.** Only `charging_status` (SOC) is `enabled = true`;
+`input_watts` and `output_watts` are configured but switched off, and `input_watts` has
+its confidence floor dropped to 20. Read that as: the large SOC digits are gettable, the
+smaller wattage fields were not reliable enough to ship. Acceptable for us — SOC is the
+number the charging decision needs, and we measure watts ourselves.
+
+**Its timeout workaround, for the record:** a Fingerbot glued to the USB-output button on
+four daily schedules, yielding two readings per day. Our 2 hr setting should beat that
+outright.
+
+### What this does not solve
+
+Region-of-interest coordinates are per-model and per-mounting; the 1000 Pro's numbers
+transfer nothing but the method. Rigid mounting is load-bearing — if the camera shifts,
+every region of interest breaks — and a shroud is needed against glare on the panel.
