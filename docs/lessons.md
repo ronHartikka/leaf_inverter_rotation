@@ -81,3 +81,15 @@
     analysing any capture** — `t[i] - t[i-1]` greater than a couple of sample intervals
     — and mark which segments are clean. Prevention: `caffeinate -i` while capturing, or
     a dedicated logger that is not someone's laptop (which is why the Ubuntu box exists).
+
+12. **A power strip socket can fail silently, and the symptom imitates a real finding.**
+    2026-09-30: the Jackery showed 0 W input with its charger apparently plugged in and
+    SOC drifting down from a ceiling it had been holding. That is exactly the signature of
+    a charge-controller deadband, and it was nearly recorded as one. The actual cause was
+    a dead socket in a mediocre power strip — moving the plug one socket over brought
+    input straight to 207 W. Nothing anywhere announced the fault; the strip was visibly
+    "on" because another device on it was running. **Before crediting any absence of
+    power — no charging, no current, a capture that stops — move the plug.** The same
+    strip also feeds the instrument, where a dropped socket would produce precisely the
+    silent capture gap of #11 with a different cause and an identical signature. Prefer a
+    known-good wall outlet for anything whose absence you would have to interpret.

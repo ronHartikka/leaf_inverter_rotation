@@ -381,3 +381,35 @@ outright.
 Region-of-interest coordinates are per-model and per-mounting; the 1000 Pro's numbers
 transfer nothing but the method. Rigid mounting is load-bearing — if the camera shifts,
 every region of interest breaks — and a shroud is needed against glare on the panel.
+
+### 2026-09-30: the app is currently a dead control path
+
+Sequence, recorded because it bears on whether §10's camera route can be configured at
+all:
+
+- Display read **SOC 81%** with **input 0 W** while the charger appeared to be plugged in.
+  The tempting conclusion was a Battery Save deadband — charge to 85%, stop, let the load
+  draw down, resume lower. **Wrong.** The charger was in a bad socket of a power strip.
+  Moving the plug one socket over brought input to **207 W** and SOC began climbing
+  (81 → 83%), 0.4 h to full. **"Holds at 85% on pass-through" stands as recorded in §9.**
+  Note the input did not appear *immediately* on re-plugging — there is a lag of some
+  seconds before the unit registers and reports charge.
+- **The Jackery app will not connect.** Every attempt and every app restart ends in a
+  "connecting Bluetooth" timeout; no valid data, controls inert. Ruled out: unit asleep
+  (screen lit, and it answers ping on the LAN at `192.168.1.65`, MAC `f0:a7:31:94:e2:d`,
+  0% loss); phone state (phone restarted); a "Bluetooth advertises only while awake"
+  theory (tried with the display lit — still no connection).
+- So the app appears to want **Bluetooth for control**, using Wi-Fi only to reach
+  Jackery's cloud — and this unit turns Bluetooth off once Wi-Fi is up. That is a
+  deadlock, and it means **the Screen timeout setting is presently unreachable.**
+
+**Consequence for the camera route.** §10 rests on setting Screen to 2 hr. If the setting
+can only be made through an app that cannot connect, the wake actuator (servo or similar)
+goes back to being a requirement rather than a convenience. Two things to try, in order:
+
+- [ ] **Does the manual expose the Screen timeout from the unit's own buttons?** This
+      would remove the app dependency entirely and is the outcome to hope for.
+- [ ] **Take the unit's Wi-Fi away and see whether Bluetooth returns** — a MAC filter
+      entry for `f0:a7:31:94:e2:0d` on the gateway. Ron looked at this earlier for the
+      BLE reverse-engineering route; the reason now is different but the action is the
+      same. Reversible.
