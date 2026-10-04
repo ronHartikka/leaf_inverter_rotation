@@ -696,6 +696,6 @@ near the fridge cord. The Jackery display reader's Pi will be on it too (own ada
 - [ ] Measure its typical draw AND its peak, to know what else could be plugged in
       without overloading the inverter.
 - [ ] Instrument: a Kill A Watt gives typical draw but not peak. The P4498 has no max hold
-      and no data output (checked against `docs/P4498 Kill A Watt Connect Quick Start
+      and no data output (checked against `docs/reference/P4498 Kill A Watt Connect Quick Start
       Guide.pdf`; "Connect" is the cable between plug and display). For peak: the EXTECH's
       MAX hold while watching startups, or the Ammeter inline to log it.

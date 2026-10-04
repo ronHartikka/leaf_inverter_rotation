@@ -124,3 +124,34 @@ below were read.
 
 <https://americancoolingandheating.com/wp-content/uploads/carrier-product-data-specifications/58MVC-5PD.pdf>
 
+
+## Portable power station — Jackery **Explorer 300 Plus**
+
+User manual. Local copy: `docs/reference/Jackery Explorer 300 Plus Portable Power Station
+User Manual-.pdf` (git-ignored). Source: Jackery's user guides page,
+<https://www.jackery.com/pages/user-guides>.
+
+⚠ **The manual is wrong about one display indicator.** It says the "12H" icon inside the
+ring means Battery Saver Mode is on. Checked on the unit 2026-10-04 by toggling the
+setting from the app: Battery Saver Mode is the white battery icon outside the ring at
+about 11 o'clock, and "12H" is the output auto-off setting (the manual's "Energy Saving
+Mode": all outputs off after 12 h at ≤ 25 W AC, ≤ 2 W USB, ≤ 2 W car). Details in
+`../jackery_display_reader/docs/display_indicators.md`.
+
+Everything else this project relies on from the unit is measured, not taken from the
+manual — see `docs/jackery_300_plus.md`.
+
+## Power meter — P3 **Kill A Watt Connect P4498**
+
+Quick start guide (rev 0124). Local copy: `docs/reference/P4498 Kill A Watt Connect
+Quick Start Guide.pdf` (git-ignored; this copy came from manualslib.com). The guide
+points to the full manual at <https://p3.club/P4498>.
+
+Facts we rely on:
+
+- Shows volts, amps, watts, VA, Hz, power factor, accumulated kWh and elapsed hours.
+- **No maximum or peak hold, and no data output.** "Connect" is the cable between the
+  plug housing and the display housing, not a wireless link. For peaks use the EXTECH's
+  MAX hold or the Ammeter.
+- Accumulated readings are kept through power interruptions.
+- Watts accuracy: 2% ± 1 W below 100 W, 2% ± 5 W from 100 to 1875 W.
