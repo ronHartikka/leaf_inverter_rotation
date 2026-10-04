@@ -56,6 +56,28 @@
  * strapping pin, so damage there still boots cleanly but returns zeros forever. Software
  * SPI means DO can simply be moved to a free pin (25/26/27/32/33) to test that.
  *
+ * FAULT CODES IN THE 0x1C FAMILY = SUPPLY, NOT PROBES (2026-09-30).
+ * Symptom: this node reporting faults 0x1c / 0x18 / 0x10 / 0x04, varying between reads.
+ * All are subsets of 0x1C, and none are threshold faults:
+ *     D2  0x04  OVUV -- over/under-voltage on FORCE+/-, RTDIN+/-
+ *     D3  0x08  RTDIN- < 0.85 x VBIAS   (reads as FORCE- open)
+ *     D4  0x10  REFIN- < 0.85 x VBIAS   (reads as FORCE- open)
+ * NOTE WHAT D3/D4 COMPARE AGAINST: 0.85 x VBIAS. A sagging or noisy rail moves VBIAS and
+ * trips exactly these bits with the probes perfectly intact -- so this family points at
+ * POWER. A VARYING code also means intermittent; a dead MAX31865 or a wrong 3-wire jumper
+ * gives one steady code instead.
+ * Cleared by running the node from a battery instead of its USB wall adapter, with the
+ * probe wiring untouched -- i.e. bad adapter and/or cable. A thin or long USB cable is the
+ * usual cause: the ESP32's WiFi transmit bursts pull a couple hundred mA and the IR drop
+ * dips the rail.
+ * FIXED by substituting a CanaKit supply -- faults gone. NOT isolated to adapter vs cable:
+ * if that supply has a captive cable, the swap replaced both at once. So the original pair
+ * must be LABELLED BAD or binned, not returned to the parts drawer -- an unmarked marginal
+ * cable reappears later as an unexplained fault on some other node.
+ * CAVEAT: an intermittent fault ABSENT from a short battery run proves little -- the clean
+ * interval has to be long enough that several faults would have been expected.
+ * Contrast with the both-channels-zero signature above, which is SPI/seating, not supply.
+ *
  * ===== ALSO ON THIS BOARD =====
  * SSD1306 OLED on I2C: addr 0x3c, SDA 5, SCL 4. Independent of the RTD SPI pins.
  */
