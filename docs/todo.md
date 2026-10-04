@@ -669,3 +669,33 @@ knowing the frost state, so it cannot tell a tired compressor from a dirty one.
 **Both captures need `caffeinate -i`** or a non-sleeping logger — see lessons.md #11.
 The instrument is `firmware/esp32_ads1115_cycle_stats` on the ESP32+ADS1115 board,
 calibrated 2026-09-27 (docs/mcu_inventory.md section 7).
+
+## SPLIT OUT 2026-10-04 — Jackery display reader
+
+Camera + OCR of the Jackery panel moved to its own project, `../jackery_display_reader`
+(sibling directory, own git repo). Nothing shared with this stack: Raspberry Pi, Python,
+Pillow, Tesseract.
+
+**Why it matters here, so it does not get forgotten:** `docs/jackery_300_plus.md` §13
+establishes SOC as the CONTROL VARIABLE for the rotation. With the furnace included the
+time budget is over 100%, the Jackery is the only interruptible load and so is the one
+squeezed, and it then loses ground at 8-33 Wh/h until the 15% output cutoff drops the
+fridge with no warning -- somewhere between ~6 h and ~25 h in. Nothing else on the rig can
+see that coming.
+
+- [ ] Interface: one-way sender into the `dual_logger` listener, same clock and line format
+      (`docs/dual_logger_socket_ingest.md`). Settle this before much code is written over
+      there -- two halves that do not quite meet is the main risk of having split.
+
+## QUEUED — measure the unswitched power strip's load (Ron, 2026-10-04)
+
+The power strip that feeds the gateway and other small loads is never switched by the
+rotation. In production it arrives on its own extension cord from the basement rig, ending
+near the fridge cord. The Jackery display reader's Pi will be on it too (own adapter).
+
+- [ ] Measure its typical draw AND its peak, to know what else could be plugged in
+      without overloading the inverter.
+- [ ] Instrument: a Kill A Watt gives typical draw but not peak. The P4498 has no max hold
+      and no data output (checked against `docs/P4498 Kill A Watt Connect Quick Start
+      Guide.pdf`; "Connect" is the cable between plug and display). For peak: the EXTECH's
+      MAX hold while watching startups, or the Ammeter inline to log it.

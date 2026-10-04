@@ -308,6 +308,15 @@ current for the same power, which makes the cable problem easier.
 
 ## 10. Reading SOC off the screen with a camera — 2026-09-30
 
+> **MOVED 2026-10-04.** The camera/OCR work now has its own project:
+> `../jackery_display_reader` (sibling directory, own git repo). Its `CLAUDE.md`
+> carries the facts it depends on, chiefly the §11 finding that "input" is charge into
+> the battery. **This section stays as the record of how the approach was arrived at**;
+> active work, open questions and hardware choices live over there.
+>
+> The interface back is a one-way sender into the `dual_logger` listener — same clock,
+> same line format, per `docs/dual_logger_socket_ingest.md`.
+
 Context: §4's BLE route is dead in practice — the unit shuts Bluetooth off once it has
 Wi-Fi, and its Wi-Fi goes to Jackery's cloud, which is gone in an outage. A camera on the
 front panel is fully local and model-independent, so it survives what the app route
@@ -395,7 +404,7 @@ all:
   **The cause is UNRESOLVED, and the test above cannot settle it.** Two hypotheses fit
   every observation equally:
 
-  - **(a) dead socket** — the charger was never drawing, and the pack drifted 85 → 81%
+  - **(a) dead socket** — the charger was never drawing, and the pack fell 85 → 81%
     under the fridge load.
   - **(b) Battery Save deadband with a resume point near 80%** — the charger was fine,
     0 W input at 81% was correct behaviour, and *the act of re-plugging reset the charging
@@ -434,3 +443,431 @@ goes back to being a requirement rather than a convenience. Two things to try, i
       entry for `f0:a7:31:94:e2:0d` on the gateway. Ron looked at this earlier for the
       BLE reverse-engineering route; the reason now is different but the action is the
       same. Reversible.
+
+---
+
+## 11. MEASURED — the display's "input" field is charge into the BATTERY, not wall draw
+
+**2026-09-30.** Settled by two simultaneous readings, with a clamp meter on the Jackery's
+AC input cord and the fridge compressor running:
+
+| source | reading |
+|---|---|
+| clamp meter, Jackery AC input | **0.66 A** (~79 VA at 120 V) |
+| Jackery display, input | **0 W** |
+| Jackery display, output | **51 W** |
+| Jackery display, SOC | **85%** (Battery Save ceiling) |
+
+Current flows in the cord while the display reads input 0 W. The field cannot be wall
+draw. (The clamp reads CURRENT, so 79 VA is an upper bound on watts — which only
+strengthens the conclusion.)
+
+**0.66 A is nowhere near a charging current.** Delivering 51 W *and* charging would be
+~1.6 A (at 137 W into the pack) or ~2.3 A (at 207 W). Measured is 2.4–3.5× below either.
+It is almost exactly pass-through alone: 51 W out at §9's measured ~82% conversion plus
+~5 W unit overhead is ~67 W, against ≤79 VA measured.
+
+### What this confirms
+
+- **Ron's two-mode model.** At/above the ceiling the wall carries the load and the
+  battery idles ("LO"); below a resume point the charger runs hard and restores the
+  ceiling in minutes ("HI"). 5 points at 207 W into a 288 Wh pack is **4.2 min** — his
+  "a few minutes".
+- **Why every glance finds 85% / 0 W.** A ~4 min recharge every ~12 h is a **0.6% duty
+  cycle**; the unit sits at the ceiling with the charger idle ~99% of the time. §10
+  argued *against* the deadband hypothesis on exactly this observation, reasoning a tight
+  deadband would spend most of its time below 85%. That reasoning assumed the 25–29 %/h
+  fridge-on-battery drain; under pass-through the net draw is ~1.2 W and the argument
+  inverts. **The deadband hypothesis is now the supported one.**
+- **The dead-socket hypothesis is no longer needed.** 0 W input at 81% with the charger
+  plugged in is ordinary LO-mode behaviour. The socket in use is live and the charger
+  draws. (This does not *prove* the original socket was live — that stays untested — but
+  nothing requires it any more.)
+- **The overnight number stops being impossible.** 5% over 12 h with a cycling fridge is
+  ~1.2 W net, a small shortfall in the pass-through balance. A cycling fridge off the
+  *pack* would be ~35 W → 420 Wh over 12 h, more than the whole 288 Wh pack.
+
+### The display cannot distinguish "unplugged" from "full"
+
+Both read input 0 W. **The confound recorded as lessons.md #12 was structural, not just
+procedural** — no amount of careful screen-watching could have settled the dead-socket
+question, because the instrument does not expose the variable. A clamp on the input cord
+does, and touches nothing.
+
+### Corrections to §9 — its charging and thermal arithmetic was built on the wrong label
+
+- **"207 W input … giving ~137 W net into the pack" is wrong.** There is nothing to
+  subtract: 207 W was going into the pack. Wall draw at that moment was therefore
+  ~207 + 70/0.85 + overhead ≈ **290 W (~2.3–2.4 A)**, NOT 207 W. **Unverified** — clamp
+  the cord during a charge pulse to check it.
+- **Charge rate: 1.20 %/min (71.9 %/h), not ~0.8 %/min.** And §9's 0.8 %/min was
+  *derived* from the 137 W figure, not measured against a clock — circular, so it never
+  arbitrated anything. **There is still no clock-measured charge rate.** The corrected
+  1.20 %/min is likewise derived.
+- **The 207 W figure now looks like the unit's charge-rate CEILING**, a constant, rather
+  than a wall draw that would vary with output. That shape fits the display holding a
+  steady 207 better than the old reading did.
+- **§9's thermal line "206 W in plus 70 W out ≈ 276 W against a 300 W rating"
+  double-counts.** Under the corrected reading the wall drew ~290 W while the unit moved
+  207 W into the pack and inverted 70 W out. Higher, not lower. And its "case stayed
+  cool" observation was already caveated as confounded by an external fan.
+- **§9's DISCHARGE table survives unchanged.** Those rows come from SOC %/min against
+  measured output VA and never used the input field: 1.41 %/min × 288 Wh × 60 = 243 W
+  pack draw ✓.
+
+### Do not derive rates from the unit's own time-to-empty estimate
+
+Readings 55 min apart, fridge idle:
+
+| time | SOC | input | output | time-to-empty |
+|---|---|---|---|---|
+| 09:49 | 85% | 0 W | 1 W | 38 h |
+| 10:44 | 85% | 0 W | 1 W | 38 h |
+
+**The 38 h did not decrement in 55 minutes.** It is not a live integration of actual
+drain, and a 5–6 W idle draw inferred from it (288 Wh × 0.85 ÷ 38 h) was wrong — SOC held
+85% across the interval, bounding idle drain under ~3 W. Separately, the unit's "0.4 h to
+full" from 81% predicts ~24 min where 1.20 %/min predicts ~3.3 min. **Treat every derived
+figure on this display as unreliable; only SOC, input, output and voltage/frequency are
+readings.**
+
+### Next, in order
+
+- [ ] Clamp the AC input during a HI-mode recharge pulse. Predicted ~2.3–2.4 A against
+      the 0.66 A measured in LO mode — an unmistakable difference, and it verifies both
+      the 207 W-into-pack reading and the charge rate.
+- [ ] Time a recharge against a clock for the first real charge-rate measurement.
+      Deliberately discharging well below the deadband gives a longer, easier interval
+      than the ~4 min ceiling pulse.
+- [ ] Log the input cord with `firmware/esp32_ads1115_cycle_stats` for the unattended
+      overnight watch. A ~4 min pulse at ~0.6% duty will not be caught by looking.
+
+### REVISION to the time-to-empty claim above — it is a valid instantaneous estimate
+
+The subsection above concluded "treat every derived figure on this display as unreliable."
+**That was too broad.** A third reading settles what the field actually is:
+
+| time | SOC | input | output | wall clamp | time-to-empty |
+|---|---|---|---|---|---|
+| 09:49 | 85% | 0 W | 1 W | — | 38 h |
+| 10:44 | 85% | 0 W | 1 W | — | 38 h |
+| 13:02 | **84%** | 0 W | 1 W | 52 mA | **37 h** |
+
+288 Wh × 0.85 ÷ 38 h = **6.44 W**; 288 Wh × 0.84 ÷ 37 h = **6.54 W**. Self-consistent at
+~6.5 W — and that is essentially the measured wall draw of 6.2 VA. So the field is
+**remaining Wh ÷ present total draw**, i.e. "how long the pack would last if the wall
+disappeared right now." It did not decrement between 09:49 and 10:44 because SOC had not
+ticked; 1% resolution, not a broken counter.
+
+**This field is therefore genuinely useful in an outage** and is worth reading alongside
+SOC: at 51 W output the total draw is ~70 W, so it would report ~3.5 h rather than 37 h.
+It reprices itself against the actual load. (Its "0.4 h to full" while charging remains
+unexplained and disagrees with the charge rate by ~7×; the *discharge* estimate is the
+one shown here to be coherent.)
+
+### State of charge falling while plugged in, measured
+
+SOC 85% → 84% somewhere between 10:44 and 13:02. One point is 2.88 Wh, so the net pack
+drain is **0.9–1.25 W** (the bracket is the unknown tick instant inside the window).
+
+**That agrees with the ~1.2 W derived independently from the overnight 5% / 12 h fall** —
+two unrelated observations landing on the same number. Ron's "about 12 hr ± 3" for 85% →
+80% was right: 14.4 Wh at 0.9–1.25 W is **11.5–16 h**.
+
+**Open, and cheap to settle: is it constant or load-driven?** The wall covers the
+1 W output and the housekeeping with 0 W into the battery, so a *constant* ~1 W bleed
+would mean the unit draws some of its own housekeeping from the pack by design — which is
+exactly the mechanism Ron proposed ("designed somehow so that SoC always slowly falls in
+LO mode"). Discriminator: a constant bleed ticks SOC every ~2.3–3.2 h regardless of
+whether the compressor runs.
+
+**Prediction from 84% at 13:02:** 83% by roughly 15:30–16:15, and the 80% resume point at
+**22:15–01:50 tonight.**
+
+#### Time-to-empty confirmed by prediction, 13:06 — compressor running
+
+| time | SOC | input | output | wall clamp | time-to-empty |
+|---|---|---|---|---|---|
+| 13:02 | 84% | 0 W | 1 W | 52 mA | 37 h |
+| **13:06** | 84% | 0 W | **52 W** | **755 mA** | **3.3 h** |
+
+The model above predicted ~3.5 h at ~51 W output before this reading was taken; it came in
+at **3.3 h**. 288 Wh × 0.84 ÷ 3.3 h = **73 W implied total pack-side draw** for 52 W
+delivered. The field reprices against real load exactly as described, across a 50× range
+of output. **Two load points, one coherent formula — the discharge estimate is a real
+reading, not decoration.**
+
+**Consequence for the camera route:** this field is a direct "hours of fridge left" number
+that already accounts for conversion losses, which arguably makes it *more* actionable in
+an outage than SOC. Worth including as an OCR target alongside SOC — with jacktessery's
+caveat that it shipped with only the large SOC digits enabled, the smaller fields having
+proved unreliable.
+
+**Pass-through roughly balances during a compressor run.** 755 mA is ~91 VA; at a plausible
+charger PF that is close to the ~81 W wall-side needed to cover a 73 W pack-side draw, with
+input reading 0 W. So the ~1 W net draw is probably NOT accumulated during compressor runs —
+which favours the constant-bleed mechanism over a load-driven one.
+
+**Unexplained, flagged rather than theorised:** 660 mA at 51 W output (earlier) vs 755 mA at
+52 W output (here) — 14% apart for the same delivered power. Could be BLDC compressor speed,
+charger PF varying with load, or meter range. Watch it; do not build on either figure.
+
+**Range pairing corrected — and the discrepancy is NOT resolved.** An earlier note here
+claimed the 660 mA reading was taken on the 400 mA range and so was out of spec. Wrong:
+the 400 mA range reading was the **~52 mA idle** one (13% of full scale, a good reading),
+and ~600 mA would flash over-range on that scale. **Both 660 mA and 755 mA were on the
+4000 mA range**, so they are directly comparable and the 14% gap at nearly the same output
+stands as an open observation. The pairing was inferred instead of asked; Ron corrected it.
+
+Candidates, none tested:
+
+- **The wall/battery split may not be tightly regulated.** The display has **no field for
+  battery DISCHARGE** — "input" reports charge into the pack only. So a run where the wall
+  supplied ~91 VA, and one where it supplied ~79 VA with the pack quietly covering the
+  difference, look identical on screen. This would also account for the ~1 W average net draw
+  as the residue of a loose split.
+- **The compressor is variable-speed** (BLDC inverter). Two snapshots of a modulating load
+  taken at different moments need not agree, and the output field's 1 W resolution can hide
+  a real difference underneath 51 vs 52 W.
+- Charger PF shifting with load — weakest, since delivered power was nearly identical.
+
+Nothing built on the sub-amp readings changes: the pass-through-not-charging conclusion
+rested on an order-of-magnitude gap (sub-amp against 1.7-2.4 A), not on precision.
+
+**What this costs the camera route:** battery discharge rate is not on the display at any
+load. **SOC trend over time is the only way to see it** — a direct argument for logging SOC
+continuously rather than glancing at it.
+
+**Range discipline for the overnight watch: leave the meter on 4000 mA.** It is the only
+range that holds the predicted 1.7-2.4 A pulse without over-ranging. The cost is that the
+52 mA idle floor sits at ~1% of full scale and reads poorly -- an acceptable trade, since
+the question is whether the pulse fires. Take idle readings on the 400 mA range
+deliberately, as separate spot measurements.
+
+#### State of charge series, 2026-09-30 (fridge on the Jackery throughout, charger connected)
+
+| time | SOC | display input | output | wall clamp |
+|---|---|---|---|---|
+| 09:49 | 85% | 0 W | 1 W | — |
+| 10:44 | 85% | 0 W | 1 W | — |
+| 13:02 | 84% | 0 W | 1 W | 52 mA (400 mA range) |
+| 13:06 | 84% | 0 W | 52 W | 755 mA |
+| 17:10 | **83%** | 0 W | 55 W | 750 mA |
+
+**Net power out of the pack, revised: ~0.78 W.** 2 points (5.76 Wh) over the 7.35 h from 09:49 to 17:10; the
+±1-point quantization puts it in ~0.5-1.2 W. Each added point has come in at the low end of
+the previous estimate, so the earlier 0.9-1.25 W bracket should be read as an upper region.
+
+**80% crossing projected 01:45-05:30 tomorrow** (3 points, 8.64 Wh, at 0.7-1.0 W). Firmly
+overnight — which is what makes a max-hold clamp reading, or the ESP32 log, the only
+practical way to catch it.
+
+**Constant bleed vs load-driven is STILL not discriminated.** Both fit: the fridge's duty is
+roughly constant, so a load-proportional drain looks constant too. 1% SOC resolution cannot
+separate them on this timescale. It would need a long compressor-off stretch, which a running
+fridge does not provide.
+
+**Wall draw while the compressor runs, three readings:** 660 mA @ 51 W, 755 mA @ 52 W,
+750 mA @ 55 W. The last two agree; **660 mA now looks like the outlier of three**, not
+evidence of a second operating level. All three give output/input-VA of 57-65%.
+
+#### The time-to-empty field implies the unit's own efficiency model
+
+Three readings at widely separated loads, converting each to an implied total pack-side
+draw as (SOC x 288 Wh) / hours-to-empty:
+
+| SOC | output | time-to-empty | implied pack draw |
+|---|---|---|---|
+| 84% | 1 W | 37 h | 6.5 W |
+| 84% | 52 W | 3.3 h | 73.3 W |
+| 82% | 75 W | 2.3 h | 102.7 W |
+
+Linear across a **75x range of output**, slope ~1.29-1.31, intercept ~5.2 W:
+
+**implied pack draw = 1.30 x output + 5.2 W**
+
+That is **~77% inverter efficiency plus ~5.2 W standing overhead** — and the 5.2 W
+independently reproduces the ~5 W overhead inferred from the measured 6.2 VA wall draw at
+1 W output. Two unrelated routes to the same constant.
+
+**Caveats.** This is the unit's INTERNAL model, not an independent measurement: it rests on
+the 288 Wh nameplate and on SOC being linear in energy. The hours field is also quantised
+(2.3 / 3.3 / 37), which is most of the slope scatter.
+
+**It conflicts with one figure in section 9.** That section's recovery run measured ~73 W
+delivered for ~84 W pack draw (0.48 %/min) = **~87%**, where this model predicts ~100 W for
+73 W out = **77%**. Section 9's defrost row, 77%, agrees with the model instead. Unresolved;
+candidates are the unit being deliberately conservative, an optimistic 288 Wh nameplate, or
+the single recovery-run figure being wrong.
+
+**Operationally useful either way:** if the display is the conservative one, the hours it
+shows UNDERSTATE remaining time, which errs in the safe direction during an outage.
+
+#### State of charge series, continued
+
+| time | SOC | output | wall clamp |
+|---|---|---|---|
+| 17:10 | 83% | 55 W | 750 mA |
+| 20:10 | **82%** | **75 W** | **970 mA** |
+
+**Net power out of the pack now ~0.84 W** (3 points / 8.64 Wh over the 10.35 h from 09:49 to 20:10), tightening
+on the earlier 0.78 W rather than moving. **80% crossing projected ~03:00.**
+
+Pass-through still balances: 970 mA ~= 116 VA covers the model's 103 W pack-side draw plus
+charger loss, with input at 0 W.
+
+**Watch, do not yet conclude:** output has risen 51 -> 52 -> 55 -> 75 W across the day. Could
+be normal compressor variation or a warming box. Well below the ~187 VA defrost heater, so
+not a defrost.
+
+#### The fall is ACCELERATING, and it tracks the load
+
+| interval | SOC | elapsed per 1% | implied net out of pack | output at the reading |
+|---|---|---|---|---|
+| 13:02 -> 17:10 | 84 -> 83% | 4.13 h | **0.70 W** | 55 W |
+| 17:10 -> 20:10 | 83 -> 82% | 3.00 h | **0.96 W** | 75 W |
+| 20:10 -> 22:45 | 82 -> **81%** | 2.58 h | **1.12 W** | 68 W |
+
+Day average 09:49 -> 22:45: 4 points / 11.52 Wh over 12.93 h = **0.89 W**.
+
+**Three consecutive intervals, each faster than the last, over a period when the fridge was
+working harder (dinner prep, door openings, RTD placement).** That is the direction a
+load-driven bleed predicts and a constant bleed does not. Stronger than the two-interval hint
+noted earlier -- but three intervals monotonic by chance alone is still ~1 in 6, so this is
+evidence, not proof.
+
+**COMPETING EXPLANATION, not excluded: SOC may not be linear in energy.** Near the top of a
+LiFePO4 curve the voltage-to-SOC relationship is steep, so an accelerating fall in
+percentage points can be a reporting artifact rather than rising energy draw. Everything in
+this section that converts percent to watt-hours assumes 2.88 Wh per point throughout.
+Distinguishing them needs a measurement over a lower, flatter part of the range.
+
+**80% crossing revised to ~01:20-03:00** (1 point at 0.9-1.12 W, slower if the quiet house
+lowers the load as predicted).
+
+#### The morning reading, and what a NEGATIVE does not prove
+
+From 81% at 22:45, a ~07:00 reading:
+
+- **~83-84%** -> fired around 02:00, recharged, re-latched. Only one pulse is expected, since
+  85% -> 80% takes 11-16 h.
+- **~78%** -> no pulse overnight.
+
+**But a negative is ambiguous and must not be read as "it never resumes."** The 80% resume
+point is an ASSUMPTION, taken from the one re-plug observation. If the real threshold is 75%
+or 70%, tonight simply will not reach it, and the result looks identical to no auto-resume at
+all. Before concluding the unit cannot recover on its own, the fall has to be followed down
+through 78 -> 75 -> 70%.
+
+## 12. RESOLVED — the unit resumes charging on its own, 2026-10-01
+
+| time | SOC |
+|---|---|
+| 20:09 | 82% |
+| 22:44 | 81% |
+| **04:46** | **85%** |
+
+**Nothing was touched.** No re-plug, no app, no power cycle. The pack fell to a resume point
+overnight, the charger ran, and the ceiling was restored.
+
+### What this closes
+
+- **The unit self-manages at the Battery Save ceiling.** It stops charging at 85% and resumes
+  without intervention. No babysitting in an outage.
+- **The dead-socket hypothesis is finished** — not merely unnecessary, as section 11 had it,
+  but excluded: that socket delivered a full recharge unattended while nobody was near it.
+- **lessons.md #12 stands undamaged.** Its point was that re-plugging cannot discriminate,
+  and that remains exactly right. What has changed is only the particular open sub-question
+  it named. The discriminating test it proposed -- a known load in the ORIGINAL socket -- was
+  never needed in the end, because a zero-touch observation answered it instead. That is the
+  lesson's own advice carried out: the test that settles a thing is usually the one that
+  changes nothing.
+
+### What is NOT established
+
+- **The resume threshold.** Only bounded as **<= 81%**. It could be 80% or lower; the pack
+  passed through whatever it is between 22:44 and 04:46.
+- **The time of the pulse**, loosely. Since SOC still read 85% at 04:46, less than one point
+  (2.88 Wh) had fallen back, so the recharge completed within 2.6 h (at the 1.11 W evening
+  rate) to 5.8 h (at 0.5 W) beforehand -- i.e. somewhere after about 23:00, and after 02:08
+  if the evening rate had persisted. **Second half of the night.**
+- **Whether it fired once or more.** One pulse is expected, since 85% -> 80% takes hours.
+- **The charging current.** The predicted 1.7-2.4 A, which would confirm 207 W into the pack,
+  still wants a clamp or a log on the input cord.
+
+### Supporting evidence for load-driven over constant
+
+At the evening rate of 1.11 W and an 80% threshold, the crossing would have been ~01:19 and
+04:46 should read **84%**, having fallen ~1.3 points since. It reads **85%**. That requires the
+fall to have SLOWED overnight -- which is when the house went quiet and the fridge's duty
+dropped. Consistent with the three accelerating evening intervals. Still not proof: a resume
+threshold below 80% combined with a faster fall also fits.
+
+### Design consequence for the rotation controller
+
+Section 3 notes that putting the fridge behind the Jackery blinds the rig's current sensor to
+the compressor. This adds a sharper version: **offering the Jackery a rotation slot can produce
+ZERO draw**, because the unit refuses charge at its ceiling. The channel will read ~0 A while
+everything is healthy. Any logic that treats "relay closed, no current" as a fault, a failed
+start, or an absent load will misfire on this channel. The Jackery is the one load in the system
+that can decline a slot.
+
+## 13. The Jackery will normally be DEEP, not near full — and SOC is the control variable
+
+**2026-10-01, Ron's correction.** An earlier version of this arithmetic asked how long the
+fridge runs on 5% of the pack (the 80-85% Battery Save window). **That premise does not occur
+in operation.** The inverter will have been serving the chest freezer and/or the furnace, so
+the Jackery's turn arrives with the pack well down -- never 5%.
+
+### Inverter time budget, with the furnace included
+
+| load | occupancy | basis |
+|---|---|---|
+| chest freezer | **61%** | MEASURED, gap-free 13.2 h deployment capture (52.3 on / 33.8 off) |
+| furnace, low fire | **25-35%** | ASSUMED in section 2; furnace duty is still TBD in rotation_budget.md |
+| fridge via Jackery | **17%** | derived: 207 W into pack balancing a 43 W continuous pack draw |
+| **total** | **103-113%** | **over budget** |
+
+**The Jackery's share is what gets squeezed**, because it is the only interruptible one.
+
+### How fast it loses ground, and the cutoff
+
+Over an hour with charging fraction t: net pack = 207t - 43(1-t) = 250t - 43 Wh/h.
+Break-even is t = **17.2%**.
+
+| charging share it actually gets | net pack | time to the 15% output cutoff (202 Wh usable) |
+|---|---|---|
+| 14% (furnace at 25%) | -8 Wh/h | **~25 h** |
+| 4% (furnace at 35%) | -33 Wh/h | **~6 h** |
+
+**Section 9 already flags the 15% cutoff as a hazard, not just a limit:** it drops the fridge
+with no warning, and restoring power is another power-cycle on a box that is already warm.
+
+### The offsetting factor, unquantified and the biggest lever here
+
+`chest_freezer.json` records that its 61-70% duty is a warm-ambient figure and that "real
+cold-ambient Michigan outages would lower duty somewhat" -- **without a number.** Cold ambient
+is exactly when the furnace runs, so the two demands partly cancel. If the CF fell to ~50% the
+total would be 92-102%, i.e. borderline rather than over. **Quantifying the CF's cold-ambient
+duty is worth more to this budget than any other single measurement.**
+
+### Why this is the quantitative case for reading SOC in an outage
+
+The scheme does not fail abruptly; it loses ground at 8-33 Wh/h and then drops the fridge at
+the 15% cutoff, somewhere between ~6 h and ~25 h in. **Nothing else on the rig can see that
+coming.** The rig's own current sensor is blind to the fridge behind the battery (section 3),
+and wall-side current cannot distinguish "holding steady" from "slowly losing." **SOC is the
+state variable that says which side of break-even the rotation is on**, and the decision it
+drives is concrete: give the Jackery a bigger share at the furnace's or the freezer's expense,
+or move the fridge to direct inverter power before the cutoff. That is the operational
+justification for the camera route in section 10 -- not convenience.
+
+### Open question, NOT settled here
+
+This budget assumes the loads cannot overlap. The project's stated reason for one-at-a-time is
+that simultaneous compressor STARTS exceed the DC-DC ceiling -- the CF's start is ~1400 VA
+(17.8 A peak). But STEADY running is small: CF ~84 W, furnace low fire ~79 W, Jackery charging
+~290 W, totalling ~450 W against a ~1.0-1.2 kW ceiling. **If steady runs may overlap and only
+starts must be serialised, the over-100% problem largely dissolves.** Raised as a question for
+Ron, not a conclusion -- it is a change to the control philosophy, and the igniter (~310 W for
+17 s, once per heat call) plus a CF start would still exceed the ceiling.
