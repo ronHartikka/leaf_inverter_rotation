@@ -64,17 +64,19 @@ static const float LSB_V = 2.048f / 32768.0f;
 // nonlinearity are referred to FULL SCALE, so a fit anchored near zero mispredicted
 // 2.00 A by 5.6%. Re-calibrate over the range actually used -- for surge work that is
 // amps to tens of amps, not fractions.
-static const float V_OFFSET_CAL = 0.01308f;   // volts, differential, at VCC_CAL
-static const float SENS_CAL     = 0.10055f;   // volts per amp, at VCC_CAL
-static const float VCC_CAL      = 4.805f;     // rail when the above were measured
+//static const float V_OFFSET_CAL = 0.01308f;   // volts, differential, at VCC_CAL
+//static const float SENS_CAL     = 0.10055f;   // volts per amp, at VCC_CAL
+static const float VCC_CAL      = 5.012f;     // rail when the above were measured
 
+static const float V_OFFSET_CAL = 0.01240f;   // was 0.01308
+static const float SENS_CAL     = 0.10174f;   // was 0.10055
 // Measure the 7805's output and put it here. BOTH the offset and the sensitivity are
 // RATIOMETRIC to Vcc -- the ACS712's zero is Vcc/2 and its volts-per-amp scales with
 // the same rail. Differential-against-Vcc/2 cancels the ZERO's supply dependence but
 // NOT the scale, which was confirmed by prediction: two identical 2.00 A runs differed
 // by 0.76 mV, a rise to 4.83 V was predicted from that, and the meter then read 4.83.
 // Correcting for it collapsed the difference to 0.13 mV.
-static const float VCC_NOW = 4.805f;
+static const float VCC_NOW = 5.012f;
 
 Adafruit_ADS1115 ads;
 
