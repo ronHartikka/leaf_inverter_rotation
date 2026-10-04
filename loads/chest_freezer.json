@@ -70,9 +70,9 @@
       },
       "annual_energy_kwh": {
         "spec_energuide": 425,
-        "measured_approx": 500,
-        "basis": "~82W x 0.70 duty = ~57W avg -> ~1.38 kWh/day -> ~500 kWh/yr.",
-        "delta": "~15-18% OVER its own factory rating despite low per-run wattage, because run time is so high. A healthy unit runs less at higher per-run watts and lands at/below 425."
+        "measured_approx": 455,
+        "basis": "MEASURED 2026-10-01 by Kill-A-Watt at the wall: 1.04 kWh accumulated over 20 h = 52.0 W average -> 1.248 kWh/day -> ~455 kWh/yr. This is an INTEGRATED measurement, not a duty x wattage product, so it carries none of the duty or per-run-wattage uncertainty.",
+        "delta": "~7% over the 425 kWh factory rating. SUPERSEDES the earlier ~500 kWh / ~15-18%-over figure, which was derived as ~82W x 0.70 duty = ~57W avg; both inputs were too high. This WEAKENS one of the three legs of factory_spec.conclusion. The other two are unaffected: duty is still above the 35-50% spec band for 70F, and per-run wattage is still far below the 130-155 W spec, so the low-charge signature stands."
       },
       "frost_note": "Cabinet photos show ~60-70% loose fill plus visible evaporator-wall frost buildup. Frost insulates the coil and lengthens run time -- a second mechanical contributor to high duty, on top of likely low charge. A defrost might recover some duty but won't fix charge."
     },
@@ -118,11 +118,29 @@
       "notes": "Kept so older analyses remain traceable, and as a caution about derived values. Superseded 2026-09-27. The stated derivation -- max of first-3s samples across run starts, from latest_chest_freezer_run.csv -- yields 12.128A when recomputed, not 3.5A, so this was an ANALYSIS artifact rather than a measurement limit. WHAT THE RIG ACTUALLY DOES: rows arrive at 10.00/s but the current VALUE only changes every 1.06s (dual_logger sample-and-hold repeats each reading ten times), so the chain's real resolution is ~1 Hz. Across the 26 starts in that file it caught the surge on 9 (8.2-12.1A) and missed it entirely on 17, which report only the steady 0.69-0.79A. A miss is INDISTINGUISHABLE from a start with no surge, which is the trap."
     },
 
+    "power_factor": {
+      "value": 0.97,
+      "range": [0.97, 1.0],
+      "confidence": "high -- CONFIRMED INDEPENDENTLY 2026-10-01 by the energy accumulator, which does not use the PF display at all: 1.04 kWh / 20 h = 52.0 W average, / 0.608 duty = 85.5 W true running watts, against 0.7 A x 124 V = 86.8 VA, giving PF 0.98. Two instruments, one of them integrating, so this is not the display rounding at the top of its scale.",
+      "source": "Kill-A-Watt at the wall socket, 2026-09-30. Two spot readings within one compressor run: PF 0.97 at 0.82A (early run), PF 1.00 at 0.70A (minutes later).",
+      "notes": "FIRST DIRECT PF MEASUREMENT on this load, and it validates an assumption the file was making silently: watts ~= volt-amps, so every A x V figure here is sound AS WATTS. In particular factory_spec.measured_vs_spec.per_run_wattage_w has basis '~0.71A end-of-run x 115V', which is VA called W -- i.e. PF=1.0 implicit. Confirmed within 3%. DO NOT carry this figure to other loads: the kitchen fridge is a BLDC inverter compressor and docs/jackery_300_plus.md section 9 puts its PF near 0.78. BEARS ON identity.compressor_type, recorded there as unresolved: a near-unity RUN power factor is evidence of a RUN CAPACITOR, since a plain resistance-start induction-run motor (PTC only, no run cap) would sit nearer 0.6-0.8. Combined with the abrupt PTC dropout ending the 1.1 s locked-rotor plateau -- which implies a start winding switched out by the PTC -- this points at a capacitor-RUN design rather than RSIR. Inference from two measurements, not a nameplate read; confirm by looking for a run capacitor at the compressor."
+    },
+    "kill_a_watt_2026_10_01": {
+      "elapsed_h": 20,
+      "energy_kwh": 1.04,
+      "average_w": 52.0,
+      "line_volts": 124,
+      "derived_duty_pct": 59.9,
+      "derived_running_w": 85.5,
+      "confidence": "high",
+      "source": "Kill-A-Watt at the wall socket, chest freezer, 2026-09-30 to 2026-10-01. Integrating meter: cannot develop the time gaps that wrecked the 2026-09-27 logged capture (lessons.md #11).",
+      "notes": "THREE-WAY CROSS-CHECK, and they agree. (1) Duty: 52.0 W average / 85.5 W running = 59.9%, against 60.8% from the independent gap-free 13.2 h ADS1115 deployment capture. (2) Running power: 52.0 W / 0.608 duty = 85.5 W, against a Kill-A-Watt spot reading of 0.7 A x 124 V x PF 1.00 = 86.8 W -- 1.5% apart. (3) The 70% warm-bench duty is NOT reproduced in the deployment location; 60% is the figure to plan with. LINE VOLTAGE IS 124 V, not the 120 V assumed in earlier arithmetic -- measured here for the first time. CAVEATS: 20 h is not a full day. CORRECTED 2026-10-01: this is the POST-DEFROST state, not the frosted one -- the CF was defrosted 2026-09-30. So this is the AFTER half of the queued defrost-as-measurement comparison, and the BEFORE half is the 60.8% from the gap-free 13.2 h deployment capture of 2026-09-28. Before 60.8% vs after 59.9% is NO MATERIAL CHANGE, which per docs/todo.md would confirm the replacement flag on real evidence rather than blaming frost. THE COMPARISON IS VALID. Defrost was 2026-09-29, took about 20 min, and the frozen food was held in coolers so it barely warmed; the box was back to 0 F or single digits and had roughly a day to settle before this accumulation began. No recovery pulldown is inside the window, so 59.9% is a settled-state figure. CONCLUSION, per docs/todo.md: frost was NOT the cause of the high duty. The replacement flag is confirmed on measured evidence rather than on an untested assumption. AND NOTE WHICH FAULT THIS IS. Annual energy is only ~7% over rating, but RUN TIME is ~60% against a 35-50% spec band at 70 F, because the unit runs long hours at low per-run wattage (85.5 W measured vs 130-155 W spec) -- the low-refrigerant-charge signature. For this project that is the worst available fault: rotation is TIME-constrained, not energy-constrained, so a unit that is nearly fine on the power bill is badly over budget on the inverter. A healthy unit would move the same heat in fewer hours at higher watts, which is exactly what docs/rotation_budget.md needs. The Kill-A-Watt hour counter is confirmed to be ELAPSED time, not gated run time -- if it were gated, the average over run hours would have come out near the 86.8 W running figure rather than 52 W."
+    },
     "running_current_a": {
       "value": 0.72,
       "confidence": "high",
       "source": "dual_logger.py merged CSV (latest_chest_freezer_run.csv), 26 complete run segments over 16.7h, steady-body mean.",
-      "notes": "Steady running mean 0.717A. End-of-run (final 60s before thermostat cutout) averaged 0.706A, per-run range 0.673-0.788A -- FLAT into shut-off, i.e. thermostatic cutout, not a laboring/rising-current compressor. Matches dorm fridge (~0.68A) and confirms compressor-class current independence from box size."
+      "notes": "Steady running mean 0.717A. End-of-run (final 60s before thermostat cutout) averaged 0.706A, per-run range 0.673-0.788A -- FLAT into shut-off, i.e. thermostatic cutout, not a laboring/rising-current compressor. Matches dorm fridge (~0.68A) and confirms compressor-class current independence from box size. CORRECTED 2026-09-30: 'FLAT into shut-off' is WRONG. A Kill-A-Watt at the wall read 0.82A early in a run and 0.70A minutes later (-15%), and the ADS1115 deployment run fell 9.2% across its length (0.667 -> 0.606A). The decline is real and is the expected signature of a box cooling down. Note that THIS ENTRY'S OWN per-run range, 0.673-0.788A, brackets exactly that 0.70-0.82A span -- the trend was already in the data and was read as scatter. Consequence: the HIGH end of the range is EARLY-run, not end-of-run, which reverses the attribution in control_constants.overcurrent_trip_a.basis ('peaks to ~0.79A end-of-run'). The 1.5A trip threshold is unaffected; margin is ample either way. The factory sticker's 'last third of cycle' wattage compares against the LOW end (~0.70A -> ~84W), which is what this file's 82W basis already used, so the spec comparison and the low-charge reasoning stand."
     },
     "inrush_peak_a": {
       "value": 17.3,
