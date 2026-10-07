@@ -787,6 +787,10 @@ overnight, the charger ran, and the ceiling was restored.
 
 - **The resume threshold.** Only bounded as **<= 81%**. It could be 80% or lower; the pack
   passed through whatever it is between 22:44 and 04:46.
+  **UPDATE 2026-10-07: resumes AT 80%** (one observation). Caught by the display reader's
+  camera, one frame a minute, no load: 81% / 0 W at 14:14, **80% / 200 W at 14:15**, then
+  ~1%/min at 206-207 W to 85% / 0 W at 14:20. Ron predicted "at or below 80%". Details:
+  `../jackery_display_reader/docs/display_indicators.md`.
 - **The time of the pulse**, loosely. Since SOC still read 85% at 04:46, less than one point
   (2.88 Wh) had fallen back, so the recharge completed within 2.6 h (at the 1.11 W evening
   rate) to 5.8 h (at 0.5 W) beforehand -- i.e. somewhere after about 23:00, and after 02:08
