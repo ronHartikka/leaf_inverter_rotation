@@ -36,6 +36,8 @@ on that side.
 4. **Round-trip efficiency.** Charging energy in versus fridge energy out, over a window
    with equal start and end state of charge. Expect 80–85%; it is a continuous tax on this
    unit, because the 300 Plus has no UPS bypass and always runs through its inverter.
+   **Corrected 2026-10-12:** it does have a bypass (`jackery_300_plus.md` §14, §15), so the
+   inverter loss applies only while on battery, not continuously.
 
 ## Before you start
 

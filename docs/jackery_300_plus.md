@@ -15,6 +15,12 @@ about the loads is from this repo's own measurements or its estimates, marked as
 > on a time-shifted watt-hour is likely 80–85%, so the fridge's ~26 W average becomes
 > ~31 W as seen by the rig. Not fatal to the ~9 h of deferral the buffer buys, but a real
 > tax that §3 did not account for.
+>
+> **CORRECTED — see §14 and §15.** There IS a bypass: on wall power the output is mains
+> passed through (124 V, the house voltage), and removing input switches to the inverter
+> (120 V) "within 20 ms" per Jackery. Tested 2026-10-12: the fridge rode through the switch
+> in a defrost and in a compressor run. The seamlessness holds, by test; the continuous
+> conversion tax argued above does not apply while on wall power.
 
 ## 1. Specifications (vendor sources, unverified against the manual)
 
@@ -24,7 +30,7 @@ about the loads is from this repo's own measurements or its estimates, marked as
   connected. One secondary source cautions that sustained high output *while* charging
   runs hot (its example: 200 W out plus the charger). Our use is milder; confirm
   against the manual.
-- No UPS bypass on the Plus (that is the 300 v2).
+- No UPS bypass on the Plus (that is the 300 v2). **Wrong — it has one; see §14, §15.**
 
 Sources: jackery.com product page; outboundpower.com listing; Jackery's own
 "can you charge and use at the same time" article.
@@ -875,3 +881,163 @@ that simultaneous compressor STARTS exceed the DC-DC ceiling -- the CF's start i
 starts must be serialised, the over-100% problem largely dissolves.** Raised as a question for
 Ron, not a conclusion -- it is a change to the control philosophy, and the igniter (~310 W for
 17 s, once per heat call) plus a CF start would still exceed the ceiling.
+
+## 14. Manufacturer FAQ, 2026-10-04 — four corrections
+
+Source: Jackery support, "Explorer 300 Plus Basic Information", model **JE-300B**. Saved at
+`../jackery_display_reader/docs/reference/`. **Caveat: the page quotes AC output as
+"100V / 3A"**, so it is likely a Japan-market translation; treat voltage-specific numbers
+with care. Capacity, chemistry, dimensions and mode behaviour should carry.
+
+### 1. Max AC input is 200 W +/- 20 W — so section 11's "~290 W wall draw" is impossible
+
+> **Product AC Input Specification:** 100–120V, Max. 10A (**Max. Input Power: 200W ± 20W**)
+
+Section 11 reasoned that if the display's 207 W were charge into the pack, wall draw during
+charging must be ~290 W. **The unit cannot draw that.** 220 W is the ceiling.
+
+**The reading that fits everything is a third one: "input" is the AC power drawn FOR
+CHARGING, and it excludes any load being passed through.**
+
+- 0 W input at 85% while the EXTECH showed 0.66 A in the cord — charging stopped, the 0.66 A
+  was the fridge passing through. Consistent.
+- 207 W input while delivering 70 W — charging at essentially the spec ceiling. The 207 W
+  stops looking like a coincidence and starts looking like the rated maximum.
+
+Section 11's correction to section 9 still stands in its main claim (the 207 W is NOT total
+wall draw and must not have the output subtracted from it), but its derived ~290 W figure
+is withdrawn. Charge rate: ~207 W in at charger efficiency, consistent with the FAQ's
+**"AC Charging Time: around 2H"** for 288 Wh.
+
+### 2. The unit DOES have a transfer function — section 1 is wrong
+
+> **Does it Have EPS Function:** ... the unit is equipped with an EPS function that
+> automatically switches to battery power **within 20 ms**. ... does not support 0 ms.
+
+Section 1 states "No UPS bypass on the Plus (that is the 300 v2)" and builds an argument on
+it: that the output is always inverter-generated and conversion losses are therefore paid
+continuously. **That premise appears to be wrong**, and it was an inference from a retail
+page rather than from Jackery.
+
+**Our own data supports the FAQ.** Section 9 recorded the output reading **120 V on battery
+and 124 V with the charger in**, and explained the difference as a higher DC bus while
+charging. There is a simpler explanation: **124 V is the house line voltage** — independently
+measured at exactly 124 V by the Kill-A-Watt on 2026-10-01. The unit is passing mains
+through, so its "output" reading is the wall when the wall is present.
+
+Consequences if this holds: the continuous double-conversion tax in section 1's header note
+does not exist while on wall power, and section 9's crest-factor finding ("a 300 W portable
+inverter handles this load's waveform") was measuring **bypassed mains**, not the inverter.
+The discharge measurements in section 9 are unaffected — those were on battery alone.
+
+**Discriminating test, cheap:** read the Jackery's output voltage and the wall voltage at the
+same moment. Under bypass they are identical and track each other; under inversion they drift
+independently.
+
+### 3. There is an Energy Saving Mode and an auto-shutdown — and the fridge idles at 1 W
+
+> **Can the Energy Saving Mode be turned off:** Supported.
+> **Does the app allow setting auto-shutdown:** Supported.
+
+These are separate from Battery Saving Mode. Many power stations drop the AC output when
+draw stays below a threshold for some minutes. **The fridge reads 1 W output between
+compressor runs**, which is exactly the condition such a feature looks for.
+
+It has evidently not fired in days of running, so either it is off, or its threshold is below
+1 W, or it is disabled by default. **Check the setting and record what it is.** An unattended
+AC output dropping out mid-outage is the kind of failure this whole project exists to avoid.
+
+### 4. Bluetooth/Wi-Fi can be re-enabled from the buttons — no app required
+
+> **How to activate the Bluetooth/Wi-Fi module after it has been turned off:** Press and hold
+> the **USB and AC buttons simultaneously for 3 seconds**.
+> **How to reset the device / reset Wi-Fi/Bluetooth:** hold **Power and USB for five seconds**.
+
+Section 10 recorded the app as a dead control path with no way in. There was a way in, from
+the front panel. Worth knowing because the deadlock could recur during an outage, when the
+app is useless anyway but the radio state still matters.
+
+**It was not an oversight that this went untried.** Ron knew the combination and deliberately
+held off: the fridge was plugged into the Jackery at the time, and one of the two buttons is
+the AC output. If the gesture had toggled AC instead of -- or as well as -- re-enabling the
+radios, the fridge would have taken a power interruption, which costs a ~7 minute
+anti-short-cycle lockout plus the 4 s defrost-heater pulse on re-energize. Correct call: the
+information was not worth a running compressor.
+
+**The constraint is gone now.** The fridge moved to the wall through the KETOTEK on
+2026-10-01 and the Jackery is idle, so the combination can be tried with nothing depending on
+it. **Worth doing deliberately while it is free** -- an escape hatch that has never been
+tested is not yet an escape hatch, and the moment you would need it is the moment you cannot
+afford to experiment. Record what it actually does, including whether the AC output state
+changes.
+
+### Also worth having
+
+- **Battery Saving Mode is 15% to 85%**, matching what was observed, and **its range is NOT
+  adjustable** ("Can the charging range for Battery saving mode be adjusted via the app: Not
+  supported"). So the window is fixed; only the mode itself can be turned off.
+- **Standby power consumption: 12 W.** Does NOT match the ~5.2 W fixed overhead derived in
+  section 11, nor the 52 mA (~6.4 VA) measured at idle. Different definition, or conservative.
+  Unresolved.
+- **Self-discharge 1–3% per month** — about 0.004–0.012 W. The ~0.84 W fall measured on
+  2026-09-30 is roughly 100x that, so it is **not** self-discharge. Supports the load-driven
+  reading.
+- **DC input: 12–27 V, max 5 A, max 100 W, through the USB-C port** — relevant to the
+  solar / Leaf-direct idea in the section 9 follow-on. One panel maximum; two is explicitly
+  unsupported.
+- **Neutral is floating**, not bonded. Matters if anything is ever fed from it that expects a
+  bonded neutral, or for GFCI behaviour.
+- Cycle life 3000 cycles to >=70%. Warranty 3 years, extendable to 5.
+- Settings survive a full discharge and recharge unless a reset is performed.
+
+## 15. MEASURED — the fridge's long-run average, 2026-10-12
+
+Read by Ron off the **KETOTEK** plug-in meter, which has carried the fridge on wall power
+since it moved off the Jackery on 2026-10-01 (§14):
+
+| reading | value |
+|---|---|
+| elapsed | 11 days 1 h 26 min = 265.4 h |
+| energy | 11.97 kWh |
+| power factor | 0.59 (at the moment of reading; compressor state not noted) |
+
+**Average 45 W, 1.08 kWh/day.** Earlier figures in this file used 26–37 W; `loads/` uses
+~1.3 kWh/day. This is the first long-run measurement and replaces both for planning.
+Early October — a cooler kitchen in winter may differ.
+
+Consequences at ~85% inverter efficiency (§9): ~53 W from the pack, so the 202 Wh Battery
+Save window carries the fridge alone for **~3.8 h, not ~6 h** (§9's figure), and recharging
+it takes **~26% of the time at 207 W, not ~18%**.
+
+Not checked: whether the KETOTEK's kWh integrates real power (W) or apparent power (VA).
+At a power factor near 0.6 that difference is large; most such meters integrate W.
+
+**Open — the EPS transfer when input is removed (§14 item 2).** Jackery says it switches to
+battery "within 20 ms", so with the fridge behind the Jackery, the rig cutting the Jackery's
+input probably gives the fridge a dropout of up to ~1 cycle. Only the other direction
+(charger plugged in) has been seen, and the fridge ignored it (§9). Untested: pull the
+Jackery's input while the compressor runs and see whether it keeps running or drops into
+its ~7 min lockout.
+
+### RESOLVED same day — the fridge rides through the switch to battery
+
+Wiring: wall -> Jackery -> KETOTEK -> fridge, Jackery at 85% (input 0 W). Ron pulled the
+Jackery's AC input briefly, twice, filming both displays:
+
+1. **During a defrost** (heater, KETOTEK 1.78 A, PF 1.00). Jackery output voltage went
+   **124 V -> 120 V -> 124 V** and output **220 W -> 210 W -> 220 W**. The KETOTEK did not
+   blank or reset and read 1.78 A / PF 1.00 throughout. The voltage step confirms §14: on
+   wall power the output is mains passed through; on battery it is the Jackery's own
+   inverter at 120 V. The power step fits a heater on lower voltage
+   ((120/124)^2 x 220 = 206 W). The KETOTEK's current not dipping the expected ~3% is
+   unexplained — perhaps it updates slowly.
+2. **During the compressor's recovery run** after that defrost (KETOTEK 1.3 A, PF 0.62,
+   pulled about a minute after it started). **The compressor kept running.**
+
+So the Jackery's transfer ("within 20 ms") is short enough for this fridge's controller and
+compressor. **Rig cutting the Jackery's input does not interrupt the fridge** — the premise
+of the buffer scheme holds, now by test rather than by the earlier no-bypass argument.
+Between runs the fridge drew 0.05 A at PF 0.24 (~1.5 W), matching the ~1 W seen before.
+
+Also seen in the compressor test: the Jackery was charging when its input was pulled, and
+**charging resumed on its own about a minute after the input was restored** (Ron, by eye).
